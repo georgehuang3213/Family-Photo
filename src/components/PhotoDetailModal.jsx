@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
-import { X, Heart, Download, MapPin, Calendar, MessageSquare, Send, Tag } from 'lucide-react';
+import { X, Heart, Download, MapPin, Calendar, MessageSquare, Send, Tag, Trash2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-export default function PhotoDetailModal({ photo, members, currentUser, onClose, onToggleFavorite, onToggleLike, onAddComment }) {
+export default function PhotoDetailModal({ 
+  photo, members, currentUser, onClose, 
+  onToggleFavorite, onToggleLike, onAddComment, onDeletePhoto 
+}) {
   const [commentText, setCommentText] = useState('');
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   const uploader = members.find(m => m.id === photo.uploader);
   const taggedMembers = members.filter(m => photo.members?.includes(m.id));
@@ -32,6 +36,11 @@ export default function PhotoDetailModal({ photo, members, currentUser, onClose,
     setCommentText('');
   };
 
+  const handleDelete = () => {
+    onDeletePhoto(photo.id);
+    onClose();
+  };
+
   return (
     <div className="modal-overlay">
       <div className="glass-panel animate-fade-in" style={{ width: '94vw', maxWidth: '1100px', height: '86vh', display: 'flex', overflow: 'hidden', padding: 0 }}>
@@ -40,10 +49,18 @@ export default function PhotoDetailModal({ photo, members, currentUser, onClose,
         <div style={{ flex: 1.5, background: '#03060c', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', position: 'relative' }}>
           <img src={photo.url} alt={photo.title} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 16px 48px rgba(0,0,0,0.8)' }} />
 
-          {/* Download button overlay */}
-          <button className="btn btn-secondary" onClick={handleDownload} style={{ position: 'absolute', bottom: '20px', right: '20px', fontSize: '0.82rem' }}>
-            <Download size={15} /> 下載原圖
-          </button>
+          {/* Action buttons overlay */}
+          <div style={{ position: 'absolute', bottom: '20px', right: '20px', display: 'flex', gap: '8px' }}>
+            <button className="btn btn-secondary" onClick={handleDownload} style={{ fontSize: '0.82rem' }}>
+              <Download size={15} /> 下載原圖
+            </button>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => setShowConfirmDelete(true)} 
+              style={{ fontSize: '0.82rem', borderColor: 'rgba(244,63,94,0.4)', color: '#fb7185' }}>
+              <Trash2 size={15} /> 刪除照片
+            </button>
+          </div>
         </div>
 
         {/* Info Panel */}
@@ -62,6 +79,18 @@ export default function PhotoDetailModal({ photo, members, currentUser, onClose,
           </div>
 
           <div style={{ flex: 1, padding: '18px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+
+            {/* Delete Confirmation Box */}
+            {showConfirmDelete && (
+              <div style={{ background: 'rgba(244,63,94,0.15)', border: '1px solid rgba(244,63,94,0.4)', borderRadius: '12px', padding: '14px', color: '#fff' }}>
+                <p style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '8px' }}>⚠️ 確定要刪除這張照片嗎？</p>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '12px' }}>刪除後無法復原此照片。</p>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                  <button className="btn btn-secondary" onClick={() => setShowConfirmDelete(false)} style={{ fontSize: '0.78rem', padding: '4px 10px' }}>取消</button>
+                  <button className="btn btn-primary" onClick={handleDelete} style={{ fontSize: '0.78rem', padding: '4px 12px', background: 'var(--accent-rose)' }}>確定刪除</button>
+                </div>
+              </div>
+            )}
 
             {/* Uploader & Tagged Members */}
             <div>

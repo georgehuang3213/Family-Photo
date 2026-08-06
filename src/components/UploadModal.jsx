@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Upload, Check, Cloud, MapPin, Tag, User, ShieldCheck } from 'lucide-react';
+import { X, Upload, Check, Cloud, MapPin, Tag, User, ShieldCheck, Folder } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 function fileToDataURL(file) {
@@ -11,9 +11,10 @@ function fileToDataURL(file) {
   });
 }
 
-export default function UploadModal({ members, currentMember, storageConfig, onClose, onUploadComplete }) {
+export default function UploadModal({ albums = [], members, currentMember, storageConfig, onClose, onUploadComplete }) {
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
+  const [selectedAlbumId, setSelectedAlbumId] = useState(albums[0]?.id || '');
   const [selectedMembers, setSelectedMembers] = useState(currentMember ? [currentMember.id] : []);
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState('');
@@ -61,6 +62,7 @@ export default function UploadModal({ members, currentMember, storageConfig, onC
 
       const newPhotos = persistentUrls.map((url, i) => ({
         id: `photo-${Date.now()}-${i}`,
+        albumId: selectedAlbumId || null,
         title: persistentUrls.length > 1 ? `${title} (${i + 1})` : title || '家族照片',
         url,
         date: new Date().toLocaleString('zh-TW', { hour12: false }),
@@ -129,16 +131,34 @@ export default function UploadModal({ members, currentMember, storageConfig, onC
             )}
           </div>
 
-          {/* Title & Location */}
+          {/* Title & Album */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
               <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>照片標題</label>
               <input type="text" placeholder="如：全家福大合照" value={title} onChange={e => setTitle(e.target.value)} className="search-input" style={{ paddingLeft: '14px' }} required />
             </div>
+
             <div>
-              <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>拍攝地點（選填）</label>
-              <input type="text" placeholder="如：台北市" value={location} onChange={e => setLocation(e.target.value)} className="search-input" style={{ paddingLeft: '14px' }} />
+              <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>歸屬相簿（選填）</label>
+              <select 
+                value={selectedAlbumId} 
+                onChange={e => setSelectedAlbumId(e.target.value)}
+                className="search-input"
+                style={{ paddingLeft: '14px', appearance: 'auto' }}>
+                <option value="" style={{ background: '#111827', color: '#fff' }}>未分類相簿</option>
+                {albums.map(a => (
+                  <option key={a.id} value={a.id} style={{ background: '#111827', color: '#fff' }}>
+                    {a.title}
+                  </option>
+                ))}
+              </select>
             </div>
+          </div>
+
+          {/* Location */}
+          <div>
+            <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>拍攝地點（選填）</label>
+            <input type="text" placeholder="如：台北市" value={location} onChange={e => setLocation(e.target.value)} className="search-input" style={{ paddingLeft: '14px' }} />
           </div>
 
           {/* Tag Members */}
