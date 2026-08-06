@@ -1,32 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Images, Heart, Search, Upload, HardDrive,
-  Sparkles, Calendar, MapPin, LogOut, RefreshCw
+  Sparkles, Calendar, MapPin, LogOut, RefreshCw, Edit3, UserCheck
 } from 'lucide-react';
 
-import { INITIAL_FAMILY_MEMBERS, INITIAL_PHOTOS, INITIAL_STORAGE_CONFIG } from './data/familyData';
+import { INITIAL_PHOTOS, INITIAL_STORAGE_CONFIG } from './data/familyData';
 import UploadModal from './components/UploadModal';
 import PhotoDetailModal from './components/PhotoDetailModal';
 import StorageConfigModal from './components/StorageConfigModal';
+import NicknameModal from './components/NicknameModal';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 
 export default function App() {
   const { user, logout } = useAuth();
 
-  // ─── ALL hooks must be at the top level, before any conditional returns ───
-  const [members] = useState(INITIAL_FAMILY_MEMBERS);
+  // Load members from localStorage or start empty
+  const [members, setMembers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('family_members_v2');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   const [photos, setPhotos] = useState(INITIAL_PHOTOS);
   const [storageConfig, setStorageConfig] = useState(INITIAL_STORAGE_CONFIG);
-  const [currentMember, setCurrentMember] = useState(members[3]);
   const [searchQuery, setSearchQuery] = useState('');
   const [memberFilter, setMemberFilter] = useState('ALL');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  const [activeModal, setActiveModal] = useState(null);
+
+  const [activeModal, setActiveModal] = useState(null); // null | 'upload' | 'detail' | 'storage' | 'nickname'
   const [selectedPhoto, setSelectedPhoto] = useState(null);
 
+  // Find logged-in user's family member profile
+  const currentMember = user ? members.find(m => m.id === user.uid || m.email === user.email) : null;
+
+  // Auto-prompt NicknameModal if logged in for the first time without a nickname
+  useEffect(() => {
+    if (user && !currentMember) {
+      setActiveModal('nickname');
+    }
+  }, [user, currentMember]);
+
+  // Save or update member profile
+  const handleSaveNickname = (newMember) => {
+    setMembers(prev => {
+      const exists = prev.some(m => m.id === newMember.id || m.email === newMember.email);
+      const updated = exists
+        ? prev.map(m => (m.id === newMember.id || m.email === newMember.email) ? newMember : m)
+        : [...prev, newMember];
+      try {
+        localStorage.setItem('family_members_v2', JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
+    });
+    setActiveModal(null);
+  };
+
   // ─── Auth Guard ────────────────────────────────────────────────────────
-  // undefined = still loading Firebase auth state
   if (user === undefined) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px' }}>
@@ -37,7 +72,6 @@ export default function App() {
   }
 
   if (!user) return <LoginPage />;
-
 
   // ─── Photo Handlers ──────────────────────────────────────────────────
   const handleToggleFavorite = (id) => {
@@ -96,13 +130,14 @@ export default function App() {
           </div>
 
           {/* Search */}
-          <div style={{ position: 'relative', flex: 1, maxWidth: '420px' }}>
+          <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
             <Search size={17} color="var(--text-muted)" style={{ position: 'absolute', left: '13px', top: '50%', transform: 'translateY(-50%)' }} />
             <input type="text" placeholder="搜尋照片、地點、標籤..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="search-input" />
           </div>
 
           {/* Right controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+            
             {/* Storage pill */}
             <div onClick={() => setActiveModal('storage')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '30px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-subtle)', cursor: 'pointer' }}>
               <HardDrive size={15} color="var(--accent-cyan)" />
@@ -111,13 +146,25 @@ export default function App() {
               </span>
             </div>
 
-            {/* Member switcher */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '6px 12px', borderRadius: '30px', background: 'rgba(99,102,241,0.12)', border: '1px solid var(--border-active)' }}>
-              <span style={{ fontSize: '1.1rem' }}>{currentMember.avatar}</span>
-              <select value={currentMember.id} onChange={e => setCurrentMember(members.find(m => m.id === e.target.value))} style={{ background: 'none', border: 'none', color: '#fff', fontSize: '0.83rem', fontWeight: '600', cursor: 'pointer', outline: 'none' }}>
-                {members.map(m => <option key={m.id} value={m.id} style={{ background: '#111827' }}>{m.name}</option>)}
-              </select>
-            </div>
+            {/* Current Member Badge / Edit Nickname */}
+            {currentMember ? (
+              <div 
+                onClick={() => setActiveModal('nickname')}
+                title="點擊修改暱稱"
+                style={{ 
+                  display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: '30px', 
+                  background: `${currentMember.color || '#6366f1'}20`, border: `1px solid ${currentMember.color || '#6366f1'}50`, 
+                  cursor: 'pointer' 
+                }}>
+                <span style={{ fontSize: '1.1rem' }}>{currentMember.avatar}</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#fff' }}>{currentMember.name}</span>
+                <Edit3 size={13} color="var(--text-muted)" />
+              </div>
+            ) : (
+              <button className="btn btn-secondary" onClick={() => setActiveModal('nickname')} style={{ fontSize: '0.8rem', padding: '6px 12px' }}>
+                <UserCheck size={14} /> 設定家族暱稱
+              </button>
+            )}
 
             {/* Upload */}
             <button className="btn btn-primary" onClick={() => setActiveModal('upload')}>
@@ -127,12 +174,9 @@ export default function App() {
             {/* User Avatar & Logout */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 12px 5px 6px', borderRadius: '30px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-subtle)' }}>
               {user.photoURL
-                ? <img src={user.photoURL} alt={user.displayName} style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
-                : <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'var(--gradient-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: '700' }}>{user.displayName?.[0] || '?'}</div>
+                ? <img src={user.photoURL} alt={user.displayName} style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }} />
+                : <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--gradient-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: '700' }}>{user.displayName?.[0] || '?'}</div>
               }
-              <span style={{ fontSize: '0.82rem', fontWeight: '600', color: 'var(--text-main)', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {user.displayName?.split(' ')[0] || user.email}
-              </span>
               <button onClick={logout} title="登出" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', padding: '2px' }}>
                 <LogOut size={15} />
               </button>
@@ -157,14 +201,16 @@ export default function App() {
 
           {/* Member filter */}
           <button onClick={() => setMemberFilter('ALL')} style={{ padding: '5px 12px', borderRadius: '20px', border: memberFilter === 'ALL' ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)', background: memberFilter === 'ALL' ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.04)', color: memberFilter === 'ALL' ? '#fff' : 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' }}>
-            全部成員
+            全部成員 ({members.length})
           </button>
+
           {members.map(m => (
             <button key={m.id} onClick={() => setMemberFilter(m.id)}
               style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 12px', borderRadius: '20px', border: memberFilter === m.id ? `1px solid ${m.color}` : '1px solid var(--border-subtle)', background: memberFilter === m.id ? `${m.color}20` : 'rgba(255,255,255,0.04)', color: memberFilter === m.id ? '#fff' : 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap' }}>
               {m.avatar} {m.name}
             </button>
           ))}
+
         </div>
       </div>
 
@@ -206,7 +252,6 @@ export default function App() {
         {/* Photo Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '18px' }}>
           {filteredPhotos.map(photo => {
-            const uploader = members.find(m => m.id === photo.uploader);
             return (
               <div key={photo.id} className="glass-panel" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}
                 onClick={() => { setSelectedPhoto(photo); setActiveModal('detail'); }}>
@@ -260,19 +305,26 @@ export default function App() {
 
       {/* ── FOOTER ────────────────────────────────────────────────────── */}
       <footer style={{ borderTop: '1px solid var(--border-subtle)', padding: '16px 24px', textAlign: 'center', fontSize: '0.78rem', color: 'var(--text-dim)', background: 'rgba(9,13,22,0.85)' }}>
-        家族雲端相簿 · {storageConfig.provider} · {storageConfig.connectedEmail}
+        家族雲端相簿 · {storageConfig.provider} · 已加入家族成員：{members.length} 位
       </footer>
 
       {/* ── MODALS ────────────────────────────────────────────────────── */}
       {activeModal === 'upload' && (
-        <UploadModal members={members} storageConfig={storageConfig} onClose={() => setActiveModal(null)} onUploadComplete={handleUpload} />
+        <UploadModal members={members} currentMember={currentMember} storageConfig={storageConfig} onClose={() => setActiveModal(null)} onUploadComplete={handleUpload} />
       )}
       {activeModal === 'detail' && selectedPhoto && (
-        <PhotoDetailModal photo={selectedPhoto} members={members} currentUser={currentMember} onClose={() => setActiveModal(null)}
+        <PhotoDetailModal photo={selectedPhoto} members={members} currentUser={currentMember || { id: user.uid, name: user.displayName || '家族成員' }} onClose={() => setActiveModal(null)}
           onToggleFavorite={handleToggleFavorite} onToggleLike={handleToggleLike} onAddComment={handleAddComment} />
       )}
       {activeModal === 'storage' && (
         <StorageConfigModal storageConfig={storageConfig} onClose={() => setActiveModal(null)} onSaveConfig={setStorageConfig} />
+      )}
+      {activeModal === 'nickname' && (
+        <NicknameModal 
+          googleUser={user} 
+          defaultName={currentMember?.name}
+          onSave={handleSaveNickname} 
+        />
       )}
     </div>
   );
