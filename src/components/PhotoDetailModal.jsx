@@ -43,7 +43,7 @@ export default function PhotoDetailModal({
 
   return (
     <div className="modal-overlay">
-      <div className="glass-panel animate-fade-in" style={{ width: '94vw', maxWidth: '1100px', height: '86vh', display: 'flex', overflow: 'hidden', padding: 0 }}>
+      <div className="glass-panel photo-detail-modal animate-fade-in" style={{ width: '94vw', maxWidth: '1100px', height: '86vh', display: 'flex', overflow: 'hidden', padding: 0 }}>
 
         {/* Photo View */}
         <div style={{ flex: 1.5, background: '#03060c', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', position: 'relative' }}>

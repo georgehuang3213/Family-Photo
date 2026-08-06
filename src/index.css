@@ -220,3 +220,76 @@ body {
   padding: 20px;
   animation: fadeIn 0.2s ease;
 }
+
+/* Mobile & Touch Responsive Enhancements */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@media (max-width: 768px) {
+  .modal-overlay {
+    padding: 10px;
+    align-items: flex-end;
+  }
+
+  /* Mobile modals slide up like iOS bottom sheets */
+  .modal-overlay > .glass-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92vh !important;
+    overflow-y: auto;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-top-left-radius: 20px !important;
+    border-top-right-radius: 20px !important;
+  }
+
+  /* Photo detail modal fullscreen on mobile */
+  .photo-detail-modal {
+    flex-direction: column !important;
+    height: 95vh !important;
+    max-height: 95vh !important;
+    overflow-y: auto !important;
+  }
+  .photo-detail-modal > div:first-child {
+    min-height: 300px !important;
+    height: 45vh !important;
+    flex: none !important;
+  }
+  .photo-detail-modal > div:last-child {
+    width: 100% !important;
+    flex: 1 !important;
+  }
+
+  .btn {
+    min-height: 42px;
+  }
+}
+
+/* Responsive Photo Grid */
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+.album-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 22px;
+}
+
+@media (max-width: 640px) {
+  .photo-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .album-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}

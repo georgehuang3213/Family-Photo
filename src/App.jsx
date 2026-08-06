@@ -287,11 +287,11 @@ export default function App() {
       </header>
 
       {/* ── FILTER & TAB BAR ────────────────────────────────────────────── */}
-      <div style={{ background: 'rgba(9,13,22,0.7)', borderBottom: '1px solid var(--border-subtle)', padding: '10px 24px' }}>
-        <div style={{ maxWidth: '1300px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+      <div style={{ background: 'rgba(9,13,22,0.7)', borderBottom: '1px solid var(--border-subtle)', padding: '10px 16px', overflowX: 'auto' }} className="no-scrollbar">
+        <div style={{ maxWidth: '1300px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '10px', width: 'max-content', minWidth: '100%' }}>
           
           {/* Main Navigation Tabs */}
-          <div style={{ display: 'flex', gap: '6px', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '20px', border: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '20px', border: '1px solid var(--border-subtle)', flexShrink: 0 }}>
             <button 
               onClick={() => { setActiveTab('gallery'); setSelectedAlbumId('ALL'); }}
               className={`btn ${activeTab === 'gallery' ? 'btn-primary' : 'btn-secondary'}`}
@@ -306,22 +306,22 @@ export default function App() {
             </button>
           </div>
 
-          <div style={{ width: '1px', height: '18px', background: 'var(--border-subtle)' }} />
+          <div style={{ width: '1px', height: '18px', background: 'var(--border-subtle)', flexShrink: 0 }} />
 
           {/* Favorites toggle */}
           <button onClick={() => setShowFavoritesOnly(f => !f)}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 13px', borderRadius: '20px', border: showFavoritesOnly ? '1px solid var(--accent-amber)' : '1px solid var(--border-subtle)', background: showFavoritesOnly ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.04)', color: showFavoritesOnly ? 'var(--accent-amber)' : 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 13px', borderRadius: '20px', border: showFavoritesOnly ? '1px solid var(--accent-amber)' : '1px solid var(--border-subtle)', background: showFavoritesOnly ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.04)', color: showFavoritesOnly ? 'var(--accent-amber)' : 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
             <Heart size={13} fill={showFavoritesOnly ? 'var(--accent-amber)' : 'none'} /> 精選收藏 {totalFavorites > 0 && `(${totalFavorites})`}
           </button>
 
           {/* Album Filter chips */}
           {albums.length > 0 && activeTab === 'gallery' && (
             <>
-              <div style={{ width: '1px', height: '18px', background: 'var(--border-subtle)' }} />
+              <div style={{ width: '1px', height: '18px', background: 'var(--border-subtle)', flexShrink: 0 }} />
               <button 
                 onClick={() => setSelectedAlbumId('ALL')}
                 style={{
-                  padding: '5px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer',
+                  padding: '5px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', flexShrink: 0,
                   background: selectedAlbumId === 'ALL' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.04)',
                   color: '#fff', border: selectedAlbumId === 'ALL' ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)'
                 }}>
@@ -332,7 +332,7 @@ export default function App() {
                   key={alb.id}
                   onClick={() => setSelectedAlbumId(alb.id)}
                   style={{
-                    padding: '5px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer',
+                    padding: '5px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', flexShrink: 0,
                     background: selectedAlbumId === alb.id ? 'var(--accent-primary)' : 'rgba(255,255,255,0.04)',
                     color: selectedAlbumId === alb.id ? '#fff' : 'var(--text-muted)',
                     border: selectedAlbumId === alb.id ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
@@ -347,13 +347,13 @@ export default function App() {
           {/* Member filter */}
           {members.length > 0 && (
             <>
-              <div style={{ width: '1px', height: '18px', background: 'var(--border-subtle)' }} />
-              <button onClick={() => setMemberFilter('ALL')} style={{ padding: '5px 12px', borderRadius: '20px', border: memberFilter === 'ALL' ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)', background: memberFilter === 'ALL' ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.04)', color: memberFilter === 'ALL' ? '#fff' : 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' }}>
+              <div style={{ width: '1px', height: '18px', background: 'var(--border-subtle)', flexShrink: 0 }} />
+              <button onClick={() => setMemberFilter('ALL')} style={{ padding: '5px 12px', borderRadius: '20px', border: memberFilter === 'ALL' ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)', background: memberFilter === 'ALL' ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.04)', color: memberFilter === 'ALL' ? '#fff' : 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', flexShrink: 0 }}>
                 全部成員
               </button>
               {members.map(m => (
                 <button key={m.id} onClick={() => setMemberFilter(m.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 12px', borderRadius: '20px', border: memberFilter === m.id ? `1px solid ${m.color}` : '1px solid var(--border-subtle)', background: memberFilter === m.id ? `${m.color}20` : 'rgba(255,255,255,0.04)', color: memberFilter === m.id ? '#fff' : 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 12px', borderRadius: '20px', border: memberFilter === m.id ? `1px solid ${m.color}` : '1px solid var(--border-subtle)', background: memberFilter === m.id ? `${m.color}20` : 'rgba(255,255,255,0.04)', color: memberFilter === m.id ? '#fff' : 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
                   {m.avatar} {m.name}
                 </button>
               ))}
@@ -364,13 +364,13 @@ export default function App() {
       </div>
 
       {/* ── MAIN CONTENT ──────────────────────────────────────────────── */}
-      <main style={{ maxWidth: '1300px', margin: '0 auto', width: '100%', padding: '28px 24px', flex: 1 }}>
+      <main style={{ maxWidth: '1300px', margin: '0 auto', width: '100%', padding: '20px 16px', flex: 1 }}>
 
         {/* TAB 1: GALLERY VIEW */}
         {activeTab === 'gallery' && (
           <>
             {photos.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                   共 <strong style={{ color: '#fff' }}>{filteredPhotos.length}</strong> 張家族照片
                   {selectedAlbumId !== 'ALL' && ` · ${albums.find(a => a.id === selectedAlbumId)?.title}`}
@@ -383,12 +383,12 @@ export default function App() {
 
             {/* Empty State */}
             {filteredPhotos.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '100px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+              <div style={{ textAlign: 'center', padding: '80px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
                 <div style={{ fontSize: '4.5rem' }}>📷</div>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>
+                <h2 style={{ fontSize: '1.4rem', fontWeight: '700' }}>
                   {searchQuery || memberFilter !== 'ALL' || selectedAlbumId !== 'ALL' || showFavoritesOnly ? '沒有符合條件的照片' : '相簿目前是空的'}
                 </h2>
-                <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', maxWidth: '380px' }}>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', maxWidth: '380px' }}>
                   {searchQuery || memberFilter !== 'ALL' || selectedAlbumId !== 'ALL' || showFavoritesOnly
                     ? '試著清除篩選條件，查看所有照片。'
                     : '點擊「上傳照片」，開始建立您的家族雲端記憶！'}
@@ -402,7 +402,7 @@ export default function App() {
             )}
 
             {/* Photo Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '18px' }}>
+            <div className="photo-grid">
               {filteredPhotos.map(photo => {
                 return (
                   <div key={photo.id} className="glass-panel" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer', position: 'relative' }}
@@ -485,7 +485,7 @@ export default function App() {
                 </button>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '22px' }}>
+              <div className="album-grid">
                 {albums.map(album => {
                   const albumPhotos = photos.filter(p => p.albumId === album.id);
                   const cover = albumPhotos[0]?.url || album.coverImage;
