@@ -12,6 +12,7 @@ import NicknameModal from './components/NicknameModal';
 import InviteModal from './components/InviteModal';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
+import { getAllPhotosFromDB, savePhotoToDB } from './utils/photoStorage';
 
 export default function App() {
   const { user, isAdmin, logout } = useAuth();
@@ -26,14 +27,25 @@ export default function App() {
     }
   });
 
-  const [photos, setPhotos] = useState(INITIAL_PHOTOS);
+  const [photos, setPhotos] = useState([]);
   const [storageConfig, setStorageConfig] = useState(INITIAL_STORAGE_CONFIG);
   const [searchQuery, setSearchQuery] = useState('');
   const [memberFilter, setMemberFilter] = useState('ALL');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
-  const [activeModal, setActiveModal] = useState(null); // null | 'upload' | 'detail' | 'storage' | 'nickname'
+  const [activeModal, setActiveModal] = useState(null);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+
+  // Load persistent photos from IndexedDB on mount
+  useEffect(() => {
+    async function loadPhotos() {
+      const savedPhotos = await getAllPhotosFromDB();
+      if (savedPhotos && savedPhotos.length > 0) {
+        setPhotos(savedPhotos);
+      }
+    }
+    loadPhotos();
+  }, []);
 
   // Find logged-in user's family member profile
   const currentMember = user ? members.find(m => m.id === user.uid || m.email === user.email) : null;
@@ -76,21 +88,44 @@ export default function App() {
 
   // ─── Photo Handlers ──────────────────────────────────────────────────
   const handleToggleFavorite = (id) => {
-    setPhotos(prev => prev.map(p => p.id === id ? { ...p, isFavorite: !p.isFavorite } : p));
+    setPhotos(prev => {
+      const updated = prev.map(p => p.id === id ? { ...p, isFavorite: !p.isFavorite } : p);
+      const target = updated.find(p => p.id === id);
+      if (target) savePhotoToDB(target);
+      return updated;
+    });
     setSelectedPhoto(prev => prev?.id === id ? { ...prev, isFavorite: !prev.isFavorite } : prev);
   };
 
   const handleToggleLike = (id) => {
-    setPhotos(prev => prev.map(p => p.id === id ? { ...p, likes: p.likes + 1 } : p));
+    setPhotos(prev => {
+      const updated = prev.map(p => p.id === id ? { ...p, likes: p.likes + 1 } : p);
+      const target = updated.find(p => p.id === id);
+      if (target) savePhotoToDB(target);
+      return updated;
+    });
     setSelectedPhoto(prev => prev?.id === id ? { ...prev, likes: prev.likes + 1 } : prev);
   };
 
   const handleAddComment = (id, comment) => {
-    setPhotos(prev => prev.map(p => p.id === id ? { ...p, comments: [...(p.comments || []), comment] } : p));
+    setPhotos(prev => {
+      const updated = prev.map(p => p.id === id ? { ...p, comments: [...(p.comments || []), comment] } : p);
+      const target = updated.find(p => p.id === id);
+      if (target) savePhotoToDB(target);
+      return updated;
+    });
     setSelectedPhoto(prev => prev?.id === id ? { ...prev, comments: [...(prev.comments || []), comment] } : prev);
   };
 
-  const handleUpload = (newPhoto) => setPhotos(prev => [newPhoto, ...prev]);
+  const handleUpload = async (newPhoto) => {
+    try {
+      await savePhotoToDB(newPhoto);
+      setPhotos(prev => [newPhoto, ...prev]);
+    } catch (err) {
+      console.error('Failed to save uploaded photo:', err);
+      setPhotos(prev => [newPhoto, ...prev]);
+    }
+  };
 
   // ─── Filtered photos ──────────────────────────────────────────────────
   const filteredPhotos = photos.filter(p => {

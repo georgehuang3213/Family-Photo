@@ -1,11 +1,20 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { X, Upload, Check, Cloud, MapPin, Tag, User, ShieldCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-export default function UploadModal({ members, storageConfig, onClose, onUploadComplete }) {
+function fileToDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+export default function UploadModal({ members, currentMember, storageConfig, onClose, onUploadComplete }) {
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
-  const [selectedMembers, setSelectedMembers] = useState([members[3]?.id].filter(Boolean));
+  const [selectedMembers, setSelectedMembers] = useState(currentMember ? [currentMember.id] : []);
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState('');
   const [previewUrls, setPreviewUrls] = useState([]);
@@ -36,36 +45,45 @@ export default function UploadModal({ members, storageConfig, onClose, onUploadC
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!previewUrls.length) return;
+    if (!fileObjects.length && !previewUrls.length) return;
     setIsUploading(true);
-    let p = 0;
-    const iv = setInterval(() => {
-      p += 12;
-      setUploadProgress(Math.min(p, 100));
-      if (p >= 100) {
-        clearInterval(iv);
-        setTimeout(() => {
-          const newPhotos = previewUrls.map((url, i) => ({
-            id: `photo-${Date.now()}-${i}`,
-            title: previewUrls.length > 1 ? `${title} (${i + 1})` : title || '家族照片',
-            url,
-            date: new Date().toLocaleString('zh-TW', { hour12: false }),
-            location: location || '',
-            uploader: members[3]?.id || members[0]?.id,
-            members: selectedMembers,
-            likes: 0,
-            isFavorite: false,
-            tags,
-            comments: []
-          }));
-          confetti({ particleCount: 80, spread: 65, origin: { y: 0.65 } });
-          newPhotos.forEach(p => onUploadComplete(p));
-          onClose();
-        }, 300);
-      }
-    }, 120);
+    setUploadProgress(20);
+
+    try {
+      // Convert all file objects to permanent Data URLs
+      const persistentUrls = await Promise.all(
+        fileObjects.map(file => fileToDataURL(file))
+      );
+
+      setUploadProgress(70);
+
+      const newPhotos = persistentUrls.map((url, i) => ({
+        id: `photo-${Date.now()}-${i}`,
+        title: persistentUrls.length > 1 ? `${title} (${i + 1})` : title || '家族照片',
+        url,
+        date: new Date().toLocaleString('zh-TW', { hour12: false }),
+        location: location || '',
+        uploader: currentMember?.id || 'admin',
+        members: selectedMembers,
+        likes: 0,
+        isFavorite: false,
+        tags,
+        comments: [],
+        timestamp: Date.now() + i
+      }));
+
+      setUploadProgress(100);
+      confetti({ particleCount: 80, spread: 65, origin: { y: 0.65 } });
+      
+      // Send persistent photos to parent
+      newPhotos.forEach(p => onUploadComplete(p));
+      onClose();
+    } catch (err) {
+      console.error('Error processing upload files:', err);
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -124,21 +142,23 @@ export default function UploadModal({ members, storageConfig, onClose, onUploadC
           </div>
 
           {/* Tag Members */}
-          <div>
-            <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>標記家族成員</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {members.map(m => {
-                const sel = selectedMembers.includes(m.id);
-                return (
-                  <button key={m.id} type="button" onClick={() => toggleMember(m.id)}
-                    style={{ padding: '5px 12px', borderRadius: '20px', border: sel ? `1px solid ${m.color}` : '1px solid var(--border-subtle)', background: sel ? `${m.color}25` : 'rgba(255,255,255,0.04)', color: sel ? '#fff' : 'var(--text-muted)', fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    {m.avatar} {m.name}
-                    {sel && <Check size={12} color={m.color} />}
-                  </button>
-                );
-              })}
+          {members.length > 0 && (
+            <div>
+              <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>標記家族成員</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {members.map(m => {
+                  const sel = selectedMembers.includes(m.id);
+                  return (
+                    <button key={m.id} type="button" onClick={() => toggleMember(m.id)}
+                      style={{ padding: '5px 12px', borderRadius: '20px', border: sel ? `1px solid ${m.color}` : '1px solid var(--border-subtle)', background: sel ? `${m.color}25` : 'rgba(255,255,255,0.04)', color: sel ? '#fff' : 'var(--text-muted)', fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      {m.avatar} {m.name}
+                      {sel && <Check size={12} color={m.color} />}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Tags */}
           <div>
@@ -155,7 +175,7 @@ export default function UploadModal({ members, storageConfig, onClose, onUploadC
           {isUploading && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                <span>正在上傳至 {storageConfig.provider}...</span><span>{uploadProgress}%</span>
+                <span>正在轉為高畫質備份並存入雲端...</span><span>{uploadProgress}%</span>
               </div>
               <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
                 <div style={{ width: `${uploadProgress}%`, height: '100%', background: 'var(--gradient-main)', transition: 'width 0.12s ease' }} />
@@ -166,7 +186,7 @@ export default function UploadModal({ members, storageConfig, onClose, onUploadC
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '4px' }}>
             <button type="button" className="btn btn-secondary" onClick={onClose} disabled={isUploading}>取消</button>
             <button type="submit" className="btn btn-primary" disabled={isUploading || !previewUrls.length}>
-              {isUploading ? '上傳中...' : `📤 上傳至家族雲端`}
+              {isUploading ? '處理中...' : `📤 上傳至家族雲端`}
             </button>
           </div>
         </form>
