@@ -4,21 +4,31 @@ import { auth, googleProvider } from '../firebase';
 
 export const ADMIN_EMAIL = 'chiaoyu3213@gmail.com';
 
+// ── 允許登入的家族成員 Email 白名單 ──────────────────────────────────────────
+// 只有這裡列出的 Gmail 或由管理者新增的 Email 才能順利登入！
+export const INITIAL_ALLOWED_EMAILS = [
+  'chiaoyu3213@gmail.com',
+  // 您可以在這裡直接新增家族成員的 Gmail，例如：
+  // 'family.member1@gmail.com',
+  // 'family.member2@gmail.com',
+];
+// ─────────────────────────────────────────────────────────────────────────
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(undefined); // undefined = loading
   const [authError, setAuthError] = useState(null);
 
-  // Whitelist state stored in localStorage
+  // Whitelist state (combines INITIAL_ALLOWED_EMAILS and dynamic invited list)
   const [invitedEmails, setInvitedEmails] = useState(() => {
     try {
-      const saved = localStorage.getItem('family_invited_emails_v1');
-      const list = saved ? JSON.parse(saved) : [];
-      if (!list.includes(ADMIN_EMAIL)) list.push(ADMIN_EMAIL);
-      return list;
+      const saved = localStorage.getItem('family_invited_emails_v2');
+      const customList = saved ? JSON.parse(saved) : [];
+      const combined = Array.from(new Set([...INITIAL_ALLOWED_EMAILS, ...customList]));
+      return combined;
     } catch {
-      return [ADMIN_EMAIL];
+      return INITIAL_ALLOWED_EMAILS;
     }
   });
 
@@ -29,13 +39,13 @@ export function AuthProvider({ children }) {
       if (firebaseUser) {
         const userEmail = firebaseUser.email?.toLowerCase();
         
-        // Admin is always allowed; other users must be in invited list
+        // Strict Whitelist Check
         const isAllowed = userEmail === ADMIN_EMAIL.toLowerCase() || 
           invitedEmails.some(e => e.toLowerCase() === userEmail);
 
         if (!isAllowed) {
           signOut(auth);
-          setAuthError(`此帳號 (${firebaseUser.email}) 尚未獲得管理者 (${ADMIN_EMAIL}) 邀請。請聯繫管理者新增您的 Email！`);
+          setAuthError(`⛔ 存取被拒：此 Google 帳號 (${firebaseUser.email}) 未獲授權。請聯繫管理者 (${ADMIN_EMAIL}) 將您的 Email 加入家族白名單。`);
           setUser(null);
           return;
         }
@@ -63,11 +73,11 @@ export function AuthProvider({ children }) {
 
   const addInvitedEmail = (email) => {
     const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail || invitedEmails.includes(cleanEmail)) return;
+    if (!cleanEmail || invitedEmails.map(e => e.toLowerCase()).includes(cleanEmail)) return;
     const updated = [...invitedEmails, cleanEmail];
     setInvitedEmails(updated);
     try {
-      localStorage.setItem('family_invited_emails_v1', JSON.stringify(updated));
+      localStorage.setItem('family_invited_emails_v2', JSON.stringify(updated));
     } catch (e) {
       console.error(e);
     }
@@ -79,7 +89,7 @@ export function AuthProvider({ children }) {
     const updated = invitedEmails.filter(e => e.toLowerCase() !== cleanEmail);
     setInvitedEmails(updated);
     try {
-      localStorage.setItem('family_invited_emails_v1', JSON.stringify(updated));
+      localStorage.setItem('family_invited_emails_v2', JSON.stringify(updated));
     } catch (e) {
       console.error(e);
     }
