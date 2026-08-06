@@ -303,6 +303,24 @@ export default function App() {
 
         {/* TAB 1: GALLERY VIEW */}
         {(activeTab === 'gallery' || activeTab === 'favorites') && (
+          filteredPhotos.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '80px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+              <div style={{ fontSize: '4rem' }}>🖼️</div>
+              <h3 style={{ fontSize: '1.4rem', fontWeight: '700', color: 'var(--text-main)' }}>
+                {activeTab === 'favorites' ? '尚無精選照片' : '相簿目前是空的'}
+              </h3>
+              <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', maxWidth: '380px' }}>
+                {activeTab === 'favorites'
+                  ? '點擊照片上的愛心圖示，即可將珍貴照片加入精選收藏！'
+                  : '點擊右上角「雲端上傳照片」，開始建立您的家族雲端相簿吧！'}
+              </p>
+              {activeTab === 'gallery' && (
+                <button className="btn btn-primary" onClick={() => setActiveModal('upload')} style={{ marginTop: '8px', padding: '12px 28px', fontSize: '1rem' }}>
+                  <Upload size={18} /> 上傳第一張家族照片
+                </button>
+              )}
+            </div>
+          ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '22px' }}>
             {filteredPhotos.map(photo => {
               const uploader = members.find(m => m.id === photo.uploader);
@@ -408,6 +426,7 @@ export default function App() {
               );
             })}
           </div>
+          )
         )}
 
         {/* TAB 2: ALBUMS VIEW */}
