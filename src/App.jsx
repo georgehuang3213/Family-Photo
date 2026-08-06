@@ -1,19 +1,35 @@
 import React, { useState } from 'react';
 import {
   Images, Heart, Search, Upload, HardDrive,
-  Sparkles, Calendar, MapPin, Eye, Download, Filter
+  Sparkles, Calendar, MapPin, LogOut, RefreshCw
 } from 'lucide-react';
 
 import { INITIAL_FAMILY_MEMBERS, INITIAL_PHOTOS, INITIAL_STORAGE_CONFIG } from './data/familyData';
 import UploadModal from './components/UploadModal';
 import PhotoDetailModal from './components/PhotoDetailModal';
 import StorageConfigModal from './components/StorageConfigModal';
+import { useAuth } from './contexts/AuthContext';
+import LoginPage from './pages/LoginPage';
 
 export default function App() {
+  const { user, logout } = useAuth();
   const [members] = useState(INITIAL_FAMILY_MEMBERS);
   const [photos, setPhotos] = useState(INITIAL_PHOTOS);
   const [storageConfig, setStorageConfig] = useState(INITIAL_STORAGE_CONFIG);
   const [currentMember, setCurrentMember] = useState(members[3]);
+
+  // ─── Auth Guard ────────────────────────────────────────────────────────
+  // undefined = still loading Firebase auth state
+  if (user === undefined) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px' }}>
+        <RefreshCw size={32} color="var(--accent-primary)" style={{ animation: 'spin 1s linear infinite' }} />
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>載入中...</p>
+      </div>
+    );
+  }
+
+  if (!user) return <LoginPage />;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [memberFilter, setMemberFilter] = useState('ALL');
@@ -106,6 +122,20 @@ export default function App() {
             <button className="btn btn-primary" onClick={() => setActiveModal('upload')}>
               <Upload size={16} /> 上傳照片
             </button>
+
+            {/* User Avatar & Logout */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 12px 5px 6px', borderRadius: '30px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-subtle)' }}>
+              {user.photoURL
+                ? <img src={user.photoURL} alt={user.displayName} style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
+                : <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'var(--gradient-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: '700' }}>{user.displayName?.[0] || '?'}</div>
+              }
+              <span style={{ fontSize: '0.82rem', fontWeight: '600', color: 'var(--text-main)', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user.displayName?.split(' ')[0] || user.email}
+              </span>
+              <button onClick={logout} title="登出" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', padding: '2px' }}>
+                <LogOut size={15} />
+              </button>
+            </div>
           </div>
         </div>
       </header>
