@@ -1,18 +1,15 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
+import { 
+  subscribeToInvitedEmails, saveInvitedEmailToCloud, removeInvitedEmailFromCloud 
+} from '../utils/cloudSync';
 
 export const ADMIN_EMAIL = 'chiaoyu3213@gmail.com';
 
-// ── 允許登入的家族成員 Email 白名單 ──────────────────────────────────────────
-// 只有這裡列出的 Gmail 或由管理者新增的 Email 才能順利登入！
 export const INITIAL_ALLOWED_EMAILS = [
   'chiaoyu3213@gmail.com',
-  // 您可以在這裡直接新增家族成員的 Gmail，例如：
-  // 'family.member1@gmail.com',
-  // 'family.member2@gmail.com',
 ];
-// ─────────────────────────────────────────────────────────────────────────
 
 const AuthContext = createContext(null);
 
@@ -20,17 +17,17 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(undefined); // undefined = loading
   const [authError, setAuthError] = useState(null);
 
-  // Whitelist state (combines INITIAL_ALLOWED_EMAILS and dynamic invited list)
-  const [invitedEmails, setInvitedEmails] = useState(() => {
-    try {
-      const saved = localStorage.getItem('family_invited_emails_v2');
-      const customList = saved ? JSON.parse(saved) : [];
-      const combined = Array.from(new Set([...INITIAL_ALLOWED_EMAILS, ...customList]));
-      return combined;
-    } catch {
-      return INITIAL_ALLOWED_EMAILS;
-    }
-  });
+  // Whitelist state (combines INITIAL_ALLOWED_EMAILS and Firestore cloud invited list)
+  const [invitedEmails, setInvitedEmails] = useState(INITIAL_ALLOWED_EMAILS);
+
+  // Real-time subscribe to Cloud Invited Emails
+  useEffect(() => {
+    const unsub = subscribeToInvitedEmails((cloudEmails) => {
+      const combined = Array.from(new Set([...INITIAL_ALLOWED_EMAILS, ...cloudEmails]));
+      setInvitedEmails(combined);
+    });
+    return unsub;
+  }, []);
 
   const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
@@ -71,28 +68,20 @@ export function AuthProvider({ children }) {
 
   const logout = () => signOut(auth);
 
-  const addInvitedEmail = (email) => {
+  const addInvitedEmail = async (email) => {
     const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail || invitedEmails.map(e => e.toLowerCase()).includes(cleanEmail)) return;
-    const updated = [...invitedEmails, cleanEmail];
+    if (!cleanEmail) return;
+    const updated = Array.from(new Set([...invitedEmails, cleanEmail]));
     setInvitedEmails(updated);
-    try {
-      localStorage.setItem('family_invited_emails_v2', JSON.stringify(updated));
-    } catch (e) {
-      console.error(e);
-    }
+    await saveInvitedEmailToCloud(cleanEmail);
   };
 
-  const removeInvitedEmail = (email) => {
+  const removeInvitedEmail = async (email) => {
     const cleanEmail = email.trim().toLowerCase();
     if (cleanEmail === ADMIN_EMAIL.toLowerCase()) return; // cannot remove admin
     const updated = invitedEmails.filter(e => e.toLowerCase() !== cleanEmail);
     setInvitedEmails(updated);
-    try {
-      localStorage.setItem('family_invited_emails_v2', JSON.stringify(updated));
-    } catch (e) {
-      console.error(e);
-    }
+    await removeInvitedEmailFromCloud(cleanEmail);
   };
 
   return (

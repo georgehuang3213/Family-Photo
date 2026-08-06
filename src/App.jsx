@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import {
   Images, Heart, Search, Upload, HardDrive,
   Sparkles, Calendar, MapPin, LogOut, RefreshCw, Edit3, UserCheck,
-  FolderPlus, Folder, Trash2
+  FolderPlus, Folder, Trash2, Cloud
 } from 'lucide-react';
 
-import { INITIAL_PHOTOS, INITIAL_STORAGE_CONFIG } from './data/familyData';
+import { INITIAL_STORAGE_CONFIG } from './data/familyData';
 import UploadModal from './components/UploadModal';
 import PhotoDetailModal from './components/PhotoDetailModal';
 import StorageConfigModal from './components/StorageConfigModal';
@@ -15,30 +15,17 @@ import CreateAlbumModal from './components/CreateAlbumModal';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import { getAllPhotosFromDB, savePhotoToDB, deletePhotoFromDB } from './utils/photoStorage';
+import {
+  subscribeToPhotos, savePhotoToCloud, deletePhotoFromCloud,
+  subscribeToAlbums, saveAlbumToCloud,
+  subscribeToMembers, saveMemberToCloud
+} from './utils/cloudSync';
 
 export default function App() {
   const { user, isAdmin, logout } = useAuth();
 
-  // Load members from localStorage
-  const [members, setMembers] = useState(() => {
-    try {
-      const saved = localStorage.getItem('family_members_v2');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  // Load albums from localStorage
-  const [albums, setAlbums] = useState(() => {
-    try {
-      const saved = localStorage.getItem('family_albums_v2');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
+  const [members, setMembers] = useState([]);
+  const [albums, setAlbums] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [storageConfig, setStorageConfig] = useState(INITIAL_STORAGE_CONFIG);
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,15 +37,43 @@ export default function App() {
   const [activeModal, setActiveModal] = useState(null); // null | 'upload' | 'detail' | 'storage' | 'nickname' | 'invite' | 'createAlbum'
   const [selectedPhoto, setSelectedPhoto] = useState(null);
 
-  // Load persistent photos from IndexedDB on mount
+  // Real-time Cloud Sync Subscriptions
   useEffect(() => {
-    async function loadPhotos() {
-      const savedPhotos = await getAllPhotosFromDB();
-      if (savedPhotos && savedPhotos.length > 0) {
-        setPhotos(savedPhotos);
+    // Photos real-time cloud sync
+    const unsubPhotos = subscribeToPhotos((cloudPhotos) => {
+      if (cloudPhotos && cloudPhotos.length > 0) {
+        setPhotos(cloudPhotos);
+      }
+    });
+
+    // Albums real-time cloud sync
+    const unsubAlbums = subscribeToAlbums((cloudAlbums) => {
+      if (cloudAlbums && cloudAlbums.length > 0) {
+        setAlbums(cloudAlbums);
+      }
+    });
+
+    // Members real-time cloud sync
+    const unsubMembers = subscribeToMembers((cloudMembers) => {
+      if (cloudMembers && cloudMembers.length > 0) {
+        setMembers(cloudMembers);
+      }
+    });
+
+    // Fallback: Local IndexedDB for offline cache
+    async function loadLocalFallback() {
+      const localPhotos = await getAllPhotosFromDB();
+      if (localPhotos && localPhotos.length > 0) {
+        setPhotos(prev => prev.length === 0 ? localPhotos : prev);
       }
     }
-    loadPhotos();
+    loadLocalFallback();
+
+    return () => {
+      unsubPhotos();
+      unsubAlbums();
+      unsubMembers();
+    };
   }, []);
 
   // Find logged-in user's family member profile
@@ -72,39 +87,28 @@ export default function App() {
   }, [user, currentMember]);
 
   // Save or update member profile
-  const handleSaveNickname = (newMember) => {
+  const handleSaveNickname = async (newMember) => {
     setMembers(prev => {
       const exists = prev.some(m => m.id === newMember.id || m.email === newMember.email);
-      const updated = exists
+      return exists
         ? prev.map(m => (m.id === newMember.id || m.email === newMember.email) ? newMember : m)
         : [...prev, newMember];
-      try {
-        localStorage.setItem('family_members_v2', JSON.stringify(updated));
-      } catch (e) {
-        console.error(e);
-      }
-      return updated;
     });
     setActiveModal(null);
+    await saveMemberToCloud(newMember);
   };
 
   // Create new Album
-  const handleCreateAlbum = (newAlbum) => {
-    setAlbums(prev => {
-      const updated = [newAlbum, ...prev];
-      try {
-        localStorage.setItem('family_albums_v2', JSON.stringify(updated));
-      } catch (e) {
-        console.error(e);
-      }
-      return updated;
-    });
+  const handleCreateAlbum = async (newAlbum) => {
+    setAlbums(prev => [newAlbum, ...prev]);
+    await saveAlbumToCloud(newAlbum);
   };
 
   // Delete Photo
   const handleDeletePhoto = async (id) => {
     try {
       await deletePhotoFromDB(id);
+      await deletePhotoFromCloud(id);
       setPhotos(prev => prev.filter(p => p.id !== id));
       if (selectedPhoto?.id === id) {
         setSelectedPhoto(null);
@@ -127,31 +131,40 @@ export default function App() {
   if (!user) return <LoginPage />;
 
   // ─── Photo Handlers ──────────────────────────────────────────────────
-  const handleToggleFavorite = (id) => {
+  const handleToggleFavorite = async (id) => {
     setPhotos(prev => {
       const updated = prev.map(p => p.id === id ? { ...p, isFavorite: !p.isFavorite } : p);
       const target = updated.find(p => p.id === id);
-      if (target) savePhotoToDB(target);
+      if (target) {
+        savePhotoToDB(target);
+        savePhotoToCloud(target);
+      }
       return updated;
     });
     setSelectedPhoto(prev => prev?.id === id ? { ...prev, isFavorite: !prev.isFavorite } : prev);
   };
 
-  const handleToggleLike = (id) => {
+  const handleToggleLike = async (id) => {
     setPhotos(prev => {
       const updated = prev.map(p => p.id === id ? { ...p, likes: p.likes + 1 } : p);
       const target = updated.find(p => p.id === id);
-      if (target) savePhotoToDB(target);
+      if (target) {
+        savePhotoToDB(target);
+        savePhotoToCloud(target);
+      }
       return updated;
     });
     setSelectedPhoto(prev => prev?.id === id ? { ...prev, likes: prev.likes + 1 } : prev);
   };
 
-  const handleAddComment = (id, comment) => {
+  const handleAddComment = async (id, comment) => {
     setPhotos(prev => {
       const updated = prev.map(p => p.id === id ? { ...p, comments: [...(p.comments || []), comment] } : p);
       const target = updated.find(p => p.id === id);
-      if (target) savePhotoToDB(target);
+      if (target) {
+        savePhotoToDB(target);
+        savePhotoToCloud(target);
+      }
       return updated;
     });
     setSelectedPhoto(prev => prev?.id === id ? { ...prev, comments: [...(prev.comments || []), comment] } : prev);
@@ -160,6 +173,7 @@ export default function App() {
   const handleUpload = async (newPhoto) => {
     try {
       await savePhotoToDB(newPhoto);
+      await savePhotoToCloud(newPhoto);
       setPhotos(prev => [newPhoto, ...prev]);
     } catch (err) {
       console.error('Failed to save uploaded photo:', err);
@@ -201,7 +215,7 @@ export default function App() {
                 家族雲端相簿
               </h1>
               <span className="badge badge-purple" style={{ fontSize: '0.68rem' }}>
-                <Sparkles size={11} /> Google AI Pro · {storageConfig.totalGB}GB
+                <Cloud size={11} color="var(--accent-cyan)" /> 雲端即時同步 · {storageConfig.totalGB}GB
               </span>
             </div>
           </div>
