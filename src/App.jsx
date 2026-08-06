@@ -41,21 +41,21 @@ export default function App() {
   useEffect(() => {
     // Photos real-time cloud sync
     const unsubPhotos = subscribeToPhotos((cloudPhotos) => {
-      if (cloudPhotos && cloudPhotos.length > 0) {
+      if (Array.isArray(cloudPhotos)) {
         setPhotos(cloudPhotos);
       }
     });
 
     // Albums real-time cloud sync
     const unsubAlbums = subscribeToAlbums((cloudAlbums) => {
-      if (cloudAlbums && cloudAlbums.length > 0) {
+      if (Array.isArray(cloudAlbums)) {
         setAlbums(cloudAlbums);
       }
     });
 
     // Members real-time cloud sync
     const unsubMembers = subscribeToMembers((cloudMembers) => {
-      if (cloudMembers && cloudMembers.length > 0) {
+      if (Array.isArray(cloudMembers)) {
         setMembers(cloudMembers);
       }
     });
