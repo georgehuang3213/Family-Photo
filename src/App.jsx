@@ -9,11 +9,12 @@ import UploadModal from './components/UploadModal';
 import PhotoDetailModal from './components/PhotoDetailModal';
 import StorageConfigModal from './components/StorageConfigModal';
 import NicknameModal from './components/NicknameModal';
+import InviteModal from './components/InviteModal';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 
 export default function App() {
-  const { user, logout } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
 
   // Load members from localStorage or start empty
   const [members, setMembers] = useState(() => {
@@ -171,6 +172,16 @@ export default function App() {
               <Upload size={16} /> 上傳照片
             </button>
 
+            {/* Admin Invite Button */}
+            {isAdmin && (
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setActiveModal('invite')}
+                style={{ fontSize: '0.8rem', padding: '6px 12px', borderColor: 'var(--accent-amber)', color: 'var(--accent-amber)' }}>
+                👑 邀請成員
+              </button>
+            )}
+
             {/* User Avatar & Logout */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 12px 5px 6px', borderRadius: '30px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-subtle)' }}>
               {user.photoURL
@@ -325,6 +336,9 @@ export default function App() {
           defaultName={currentMember?.name}
           onSave={handleSaveNickname} 
         />
+      )}
+      {activeModal === 'invite' && (
+        <InviteModal onClose={() => setActiveModal(null)} />
       )}
     </div>
   );
