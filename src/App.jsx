@@ -431,6 +431,18 @@ export default function App() {
 
         {/* TAB 2: ALBUMS VIEW */}
         {activeTab === 'albums' && (
+          albums.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '80px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+              <div style={{ fontSize: '4rem' }}>📁</div>
+              <h3 style={{ fontSize: '1.4rem', fontWeight: '700' }}>尚未建立任何家族相簿</h3>
+              <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', maxWidth: '380px' }}>
+                點擊「雲端上傳照片」，上傳照片並選擇相簿，即可自動建立您的第一個家族相簿！
+              </p>
+              <button className="btn btn-primary" onClick={() => setActiveModal('upload')} style={{ marginTop: '8px', padding: '12px 28px', fontSize: '1rem' }}>
+                <Upload size={18} /> 上傳照片建立相簿
+              </button>
+            </div>
+          ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '24px' }}>
             {albums.map(album => (
               <div key={album.id} className="glass-panel" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -461,6 +473,7 @@ export default function App() {
               </div>
             ))}
           </div>
+          )
         )}
 
         {/* TAB 3: TIMELINE VIEW */}
