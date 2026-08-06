@@ -3,8 +3,8 @@ import { X, Upload, Check, Cloud, MapPin, Tag, User, ShieldCheck, Folder, HardDr
 import confetti from 'canvas-confetti';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadToGoogleDrive } from '../utils/googleDrive';
+import { uploadPhotoToFirebaseStorage } from '../utils/firebaseStorage';
 
-// Compress image to < 300KB Data URL for real-time Firestore sync
 function compressImage(file, maxWidth = 1200, quality = 0.75) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -80,27 +80,37 @@ export default function UploadModal({ albums = [], members, currentMember, stora
     setUploadProgress(20);
 
     try {
-      // 1. Upload raw photos directly to Google One / Google Drive storage
+      // 1. Upload raw photos directly to Google Drive / Google One space
       if (accessToken) {
-        setUploadProgress(40);
+        setUploadProgress(35);
         await Promise.all(
           fileObjects.map(file => uploadToGoogleDrive(file, accessToken))
         );
       }
 
-      setUploadProgress(70);
+      setUploadProgress(60);
 
-      // 2. Compress & convert files to Cloud-ready Data URLs for real-time app sync
-      const persistentUrls = await Promise.all(
-        fileObjects.map(file => compressImage(file))
+      // 2. Upload to Google Cloud Storage (family-photo-hub-1c0b9.firebasestorage.app)
+      const cloudPhotoUrls = await Promise.all(
+        fileObjects.map(async (file) => {
+          try {
+            const firestoreUrl = await uploadPhotoToFirebaseStorage(file, (p) => {
+              setUploadProgress(60 + Math.round(p * 0.3));
+            });
+            if (firestoreUrl) return firestoreUrl;
+          } catch (storageErr) {
+            console.warn('Firebase Storage upload fallback to compressed dataUrl:', storageErr);
+          }
+          return compressImage(file);
+        })
       );
 
-      setUploadProgress(90);
+      setUploadProgress(95);
 
-      const newPhotos = persistentUrls.map((url, i) => ({
+      const newPhotos = cloudPhotoUrls.map((url, i) => ({
         id: `photo-${Date.now()}-${i}`,
         albumId: selectedAlbumId || null,
-        title: persistentUrls.length > 1 ? `${title} (${i + 1})` : title || '家族照片',
+        title: cloudPhotoUrls.length > 1 ? `${title} (${i + 1})` : title || '家族照片',
         url,
         date: new Date().toLocaleString('zh-TW', { hour12: false }),
         location: location || '',
@@ -116,7 +126,7 @@ export default function UploadModal({ albums = [], members, currentMember, stora
       setUploadProgress(100);
       confetti({ particleCount: 80, spread: 65, origin: { y: 0.65 } });
       
-      // Send photos to parent for Firestore cloud sync across all devices
+      // Send photos to parent for Cloud Sync across all devices
       newPhotos.forEach(p => onUploadComplete(p));
       onClose();
     } catch (err) {
@@ -137,7 +147,7 @@ export default function UploadModal({ albums = [], members, currentMember, stora
             <div>
               <h3 style={{ fontSize: '1.15rem', fontWeight: '700' }}>上傳照片至 Google One 家族雲端</h3>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <HardDrive size={13} color="var(--accent-cyan)" /> 儲存空間：Google One / Google Drive
+                <HardDrive size={13} color="var(--accent-cyan)" /> 儲存位置：Google Cloud Storage (Google One)
               </p>
             </div>
           </div>
@@ -232,7 +242,7 @@ export default function UploadModal({ albums = [], members, currentMember, stora
           {isUploading && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                <span>正在上傳至 Google One 空間並全裝置同步...</span><span>{uploadProgress}%</span>
+                <span>正在上傳至 Google Cloud Storage (Google One) 空間...</span><span>{uploadProgress}%</span>
               </div>
               <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
                 <div style={{ width: `${uploadProgress}%`, height: '100%', background: 'var(--gradient-main)', transition: 'width 0.12s ease' }} />
@@ -243,7 +253,7 @@ export default function UploadModal({ albums = [], members, currentMember, stora
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '4px' }}>
             <button type="button" className="btn btn-secondary" onClick={onClose} disabled={isUploading}>取消</button>
             <button type="submit" className="btn btn-primary" disabled={isUploading || !previewUrls.length}>
-              {isUploading ? '備份中...' : `📤 上傳至 Google One`}
+              {isUploading ? '備份中...' : `📤 上傳至 Google Cloud Storage`}
             </button>
           </div>
         </form>
