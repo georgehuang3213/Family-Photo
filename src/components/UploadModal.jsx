@@ -2,10 +2,34 @@ import React, { useState } from 'react';
 import { X, Upload, Check, Cloud, MapPin, Tag, User, ShieldCheck, Folder } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-function fileToDataURL(file) {
+// Compress image to < 300KB Data URL so it fits smoothly inside Firebase Firestore 1MB document limit
+function compressImage(file, maxWidth = 1200, quality = 0.75) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressedDataUrl);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
@@ -53,9 +77,9 @@ export default function UploadModal({ albums = [], members, currentMember, stora
     setUploadProgress(20);
 
     try {
-      // Convert all file objects to permanent Data URLs
+      // Compress & convert all files to Cloud-ready lightweight Data URLs
       const persistentUrls = await Promise.all(
-        fileObjects.map(file => fileToDataURL(file))
+        fileObjects.map(file => compressImage(file))
       );
 
       setUploadProgress(70);
@@ -79,7 +103,7 @@ export default function UploadModal({ albums = [], members, currentMember, stora
       setUploadProgress(100);
       confetti({ particleCount: 80, spread: 65, origin: { y: 0.65 } });
       
-      // Send persistent photos to parent
+      // Send compressed Cloud-ready photos to parent for Firestore sync
       newPhotos.forEach(p => onUploadComplete(p));
       onClose();
     } catch (err) {
@@ -100,7 +124,7 @@ export default function UploadModal({ albums = [], members, currentMember, stora
             <div>
               <h3 style={{ fontSize: '1.15rem', fontWeight: '700' }}>上傳照片至家族相簿</h3>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Cloud size={13} color="var(--accent-cyan)" /> {storageConfig.provider}
+                <Cloud size={13} color="var(--accent-cyan)" /> {storageConfig.provider} · 自動跨裝置雲端同步
               </p>
             </div>
           </div>
@@ -195,7 +219,7 @@ export default function UploadModal({ albums = [], members, currentMember, stora
           {isUploading && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                <span>正在轉為高畫質備份並存入雲端...</span><span>{uploadProgress}%</span>
+                <span>正在進行雲端高畫質壓縮並同步至全裝置...</span><span>{uploadProgress}%</span>
               </div>
               <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
                 <div style={{ width: `${uploadProgress}%`, height: '100%', background: 'var(--gradient-main)', transition: 'width 0.12s ease' }} />
@@ -206,7 +230,7 @@ export default function UploadModal({ albums = [], members, currentMember, stora
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '4px' }}>
             <button type="button" className="btn btn-secondary" onClick={onClose} disabled={isUploading}>取消</button>
             <button type="submit" className="btn btn-primary" disabled={isUploading || !previewUrls.length}>
-              {isUploading ? '處理中...' : `📤 上傳至家族雲端`}
+              {isUploading ? '處理中...' : `📤 上傳並同步全裝置`}
             </button>
           </div>
         </form>
