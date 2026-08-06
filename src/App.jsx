@@ -13,10 +13,17 @@ import LoginPage from './pages/LoginPage';
 
 export default function App() {
   const { user, logout } = useAuth();
+
+  // ─── ALL hooks must be at the top level, before any conditional returns ───
   const [members] = useState(INITIAL_FAMILY_MEMBERS);
   const [photos, setPhotos] = useState(INITIAL_PHOTOS);
   const [storageConfig, setStorageConfig] = useState(INITIAL_STORAGE_CONFIG);
   const [currentMember, setCurrentMember] = useState(members[3]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [memberFilter, setMemberFilter] = useState('ALL');
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [activeModal, setActiveModal] = useState(null);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
 
   // ─── Auth Guard ────────────────────────────────────────────────────────
   // undefined = still loading Firebase auth state
@@ -31,12 +38,6 @@ export default function App() {
 
   if (!user) return <LoginPage />;
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [memberFilter, setMemberFilter] = useState('ALL');
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-
-  const [activeModal, setActiveModal] = useState(null);
-  const [selectedPhoto, setSelectedPhoto] = useState(null);
 
   // ─── Photo Handlers ──────────────────────────────────────────────────
   const handleToggleFavorite = (id) => {
