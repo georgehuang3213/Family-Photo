@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut, GoogleAuthProvider } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 import { 
   subscribeToInvitedEmails, saveInvitedEmailToCloud, removeInvitedEmailFromCloud 
@@ -15,6 +15,7 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(undefined); // undefined = loading
+  const [accessToken, setAccessToken] = useState(() => sessionStorage.getItem('gdrive_access_token') || null);
   const [authError, setAuthError] = useState(null);
 
   // Whitelist state (combines INITIAL_ALLOWED_EMAILS and Firestore cloud invited list)
@@ -58,7 +59,12 @@ export function AuthProvider({ children }) {
   const loginWithGoogle = async () => {
     setAuthError(null);
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        setAccessToken(credential.accessToken);
+        sessionStorage.setItem('gdrive_access_token', credential.accessToken);
+      }
     } catch (err) {
       if (err.code !== 'auth/popup-closed-by-user') {
         setAuthError('登入失敗，請再試一次。');
@@ -66,7 +72,11 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = () => signOut(auth);
+  const logout = () => {
+    sessionStorage.removeItem('gdrive_access_token');
+    setAccessToken(null);
+    signOut(auth);
+  };
 
   const addInvitedEmail = async (email) => {
     const cleanEmail = email.trim().toLowerCase();
@@ -86,7 +96,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={{ 
-      user, isAdmin, authError, invitedEmails, 
+      user, isAdmin, accessToken, authError, invitedEmails, 
       loginWithGoogle, logout, addInvitedEmail, removeInvitedEmail 
     }}>
       {children}
