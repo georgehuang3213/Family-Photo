@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Check, Cloud, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Check, Cloud, ShieldCheck, RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 const PROVIDERS = [
@@ -27,6 +27,36 @@ export default function StorageConfigModal({ storageConfig, photos = [], onClose
   const [autoBackup, setAutoBackup] = useState(storageConfig.autoBackupMobile ?? true);
   const [rawStorage, setRawStorage] = useState(storageConfig.rawStorageEnabled ?? true);
 
+  // Live Cloudflare R2 API state
+  const [liveUsage, setLiveUsage] = useState(null);
+  const [isLoadingLive, setIsLoadingLive] = useState(false);
+  const [liveError, setLiveError] = useState(null);
+
+  const fetchLiveUsage = async () => {
+    setIsLoadingLive(true);
+    setLiveError(null);
+    try {
+      const res = await fetch('/api/get-r2-usage');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || '無法連線至 Cloudflare R2 API');
+      }
+      const data = await res.json();
+      if (data.success) {
+        setLiveUsage(data);
+      }
+    } catch (err) {
+      console.warn('Live R2 usage fetch fallback to local photo calc:', err.message);
+      setLiveError(err.message);
+    } finally {
+      setIsLoadingLive(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveUsage();
+  }, []);
+
   const handleSave = () => {
     onSaveConfig({
       ...storageConfig,
@@ -39,12 +69,16 @@ export default function StorageConfigModal({ storageConfig, photos = [], onClose
     onClose();
   };
 
-  // Calculate real Cloudflare R2 storage usage dynamically from photos
-  const totalSizeBytes = photos.reduce((acc, p) => acc + (p.fileSize || (2.57 * 1024 * 1024)), 0);
-  const usedMB = (totalSizeBytes / (1024 * 1024)).toFixed(2);
-  const usedGB = (totalSizeBytes / (1024 * 1024 * 1024)).toFixed(3);
-  const totalGB = storageConfig.totalGB || 10; // Cloudflare R2 10 GB Free Tier
-  const percentage = Math.min(100, Math.max(0.1, ((totalSizeBytes / (10 * 1024 * 1024 * 1024)) * 100).toFixed(1)));
+  // Fallback calculation from photos array if live API is loading or offline
+  const fallbackSizeBytes = photos.reduce((acc, p) => acc + (p.fileSize || (2.57 * 1024 * 1024)), 0);
+  const fallbackUsedMB = (fallbackSizeBytes / (1024 * 1024)).toFixed(2);
+  const fallbackUsedGB = (fallbackSizeBytes / (1024 * 1024 * 1024)).toFixed(3);
+
+  const displayMB = liveUsage ? liveUsage.usedMB : fallbackUsedMB;
+  const displayGB = liveUsage ? liveUsage.usedGB : fallbackUsedGB;
+  const displayObjects = liveUsage ? liveUsage.totalObjects : photos.length;
+  const totalGB = 10; // Cloudflare R2 Monthly Free Tier Limit
+  const percentage = Math.min(100, Math.max(0.1, (((liveUsage ? liveUsage.totalSizeBytes : fallbackSizeBytes) / (10 * 1024 * 1024 * 1024)) * 100).toFixed(1)));
 
   return (
     <div className="modal-overlay">
@@ -58,7 +92,7 @@ export default function StorageConfigModal({ storageConfig, photos = [], onClose
             </div>
             <div>
               <h3 style={{ fontSize: '1.2rem', fontWeight: '700' }}>Cloudflare R2 家族雲端儲存配置</h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>儲存桶：family-photo · 免費提供 10 GB 儲存空間</p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>儲存桶：{liveUsage?.bucketName || 'family-photo'} · 每月提供 10 GB 免費儲存空間</p>
             </div>
           </div>
           <button className="btn-icon" onClick={onClose}>
@@ -66,23 +100,42 @@ export default function StorageConfigModal({ storageConfig, photos = [], onClose
           </button>
         </div>
 
-        {/* Real Cloudflare R2 Capacity Progress */}
+        {/* Live Cloudflare R2 Capacity Progress */}
         <div style={{ background: 'rgba(99, 102, 241, 0.08)', border: '1px solid var(--border-active)', padding: '16px', borderRadius: '14px', marginBottom: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <span style={{ fontSize: '0.88rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <ShieldCheck size={16} color="var(--accent-emerald)" /> Cloudflare R2 儲存用量 (family-photo)
+              <ShieldCheck size={16} color="var(--accent-emerald)" />
+              {liveUsage ? 'Cloudflare R2 API 實時對齊用量' : 'Cloudflare R2 估算用量'}
             </span>
-            <span style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--accent-cyan)' }}>
-              {usedMB} MB ({usedGB} GB) / {totalGB} GB ({percentage}%)
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button 
+                onClick={fetchLiveUsage} 
+                disabled={isLoadingLive}
+                title="即時向 Cloudflare R2 API 抓取最新用量"
+                style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: '600' }}>
+                <RefreshCw size={12} style={{ animation: isLoadingLive ? 'spin 1s linear infinite' : 'none' }} />
+                {isLoadingLive ? '連線中...' : '即時刷新'}
+              </button>
+              <span style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--accent-cyan)' }}>
+                {displayMB} MB ({displayGB} GB) / {totalGB} GB ({percentage}%)
+              </span>
+            </div>
           </div>
+
           <div style={{ width: '100%', height: '10px', background: 'rgba(0,0,0,0.3)', borderRadius: '5px', overflow: 'hidden' }}>
             <div style={{ width: `${Math.max(percentage, 1)}%`, height: '100%', background: 'var(--gradient-main)', borderRadius: '5px' }} />
           </div>
+
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px' }}>
-            <span>已託管物件：{photos.length} 張家族照片</span>
-            <span>月傳輸流量費：$0 Egress (免費)</span>
+            <span>R2 實體物件數：{displayObjects} 個檔案</span>
+            <span>傳輸流量費：$0 Egress (免費)</span>
           </div>
+
+          {liveError && (
+            <div style={{ marginTop: '8px', fontSize: '0.72rem', color: '#fb7185' }}>
+              ⚠️ 本地預覽模式（尚未發布至 Vercel Serverless API）：已切換為本地相片精確試算。
+            </div>
+          )}
         </div>
 
         {/* Select Provider */}
