@@ -131,20 +131,36 @@ export default function UploadModal({ albums = [], members, currentMember, exist
     setSkippedDuplicateCount(skipped);
 
     if (!files.length) {
-      setFileObjects([]);
-      setPreviewUrls([]);
       return;
     }
 
-    setFileObjects(files);
-    const urls = files.map(file => URL.createObjectURL(file));
-    setPreviewUrls(urls);
+    setFileObjects(prev => {
+      const existingSignatures = new Set(prev.map(f => `${f.name}_${f.size}`));
+      const newUniqueFiles = files.filter(f => !existingSignatures.has(`${f.name}_${f.size}`));
+      const combined = [...prev, ...newUniqueFiles];
+      
+      const totalCount = combined.length;
+      if (!title && totalCount === 1) {
+        setTitle(combined[0].name.replace(/\.[^/.]+$/, ""));
+      } else if (!title || title.startsWith('家族照片包')) {
+        setTitle(`家族照片包 (${totalCount}張)`);
+      }
+      return combined;
+    });
 
-    if (!title && files.length === 1) {
-      setTitle(files[0].name.replace(/\.[^/.]+$/, ""));
-    } else if (!title && files.length > 1) {
-      setTitle(`家族照片包 (${files.length}張)`);
-    }
+    setPreviewUrls(prev => {
+      const newUrls = files.map(file => URL.createObjectURL(file));
+      return [...prev, ...newUrls];
+    });
+  };
+
+  const handleResetFiles = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setFileObjects([]);
+    setPreviewUrls([]);
+    setSkippedDuplicateCount(0);
+    setTitle('');
   };
 
   // Bug #9 Fix: Revoke object URLs only on component unmount, not on every previewUrls change
@@ -332,9 +348,9 @@ export default function UploadModal({ albums = [], members, currentMember, exist
                   <img key={i} src={url} alt="" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
                 ))}
                 {previewUrls.length > 5 && <div style={{ width: '80px', height: '80px', borderRadius: '8px', background: 'rgba(99,102,241,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: '700' }}>+{previewUrls.length - 5}</div>}
-                <div style={{ width: '100%', fontSize: '0.82rem', color: 'var(--accent-emerald)', fontWeight: '600', marginTop: '4px' }}>
-                  <ShieldCheck size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                  已選取 {previewUrls.length} 張照片 · 點擊可重新選擇
+                <div style={{ width: '100%', fontSize: '0.82rem', color: 'var(--accent-emerald)', fontWeight: '600', marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span><ShieldCheck size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} />已選取 {previewUrls.length} 張照片（可點擊繼續加選）</span>
+                  <button type="button" onClick={handleResetFiles} style={{ background: 'rgba(244,63,94,0.15)', color: '#fb7185', border: '1px solid rgba(244,63,94,0.3)', borderRadius: '12px', padding: '2px 8px', fontSize: '0.75rem', cursor: 'pointer' }}>清空重新選擇</button>
                 </div>
               </div>
             ) : (
