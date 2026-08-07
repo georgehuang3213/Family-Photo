@@ -125,6 +125,34 @@ export default function App() {
       unsubMembers();
     };
   }, [user]); // Re-subscribe whenever user changes (login/logout)
+  
+  // Stranded photos migration helper: If there's a non-default album, migrate any photos
+  // belonging to the legacy/hidden 'alb-all' to this album so they become visible.
+  useEffect(() => {
+    if (photos.length === 0 || albums.length === 0) return;
+    
+    // Find the first valid user album
+    const targetAlbum = albums.find(a => a.id !== 'alb-all');
+    if (!targetAlbum) return;
+
+    const stranded = photos.filter(p => !p.albumId || p.albumId === 'alb-all');
+    if (stranded.length > 0) {
+      const migrate = async () => {
+        const updatedPhotos = stranded.map(p => ({ ...p, albumId: targetAlbum.id }));
+        // Update local state immediately for instant responsiveness
+        setPhotos(prev => prev.map(p => (!p.albumId || p.albumId === 'alb-all') ? { ...p, albumId: targetAlbum.id } : p));
+        
+        try {
+          await savePhotosToDB(updatedPhotos);
+          await savePhotosToCloud(updatedPhotos);
+          console.log(`Successfully migrated ${stranded.length} stranded photos to album: ${targetAlbum.title}`);
+        } catch (err) {
+          console.error('Failed to migrate stranded photos:', err);
+        }
+      };
+      migrate();
+    }
+  }, [photos, albums]);
 
 
   // Find logged-in user's family member profile
@@ -883,6 +911,7 @@ export default function App() {
           storageConfig={storageConfig} 
           onClose={() => setActiveModal(null)} 
           onUploadComplete={handleUpload} 
+          selectedAlbumId={selectedAlbumId}
         />
       )}
       {activeModal === 'detail' && selectedPhoto && (

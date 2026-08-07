@@ -37,10 +37,12 @@ function compressImage(file, maxWidth = 800, quality = 0.65) {
   });
 }
 
-export default function UploadModal({ albums = [], members, currentMember, existingPhotos = [], _storageConfig, onClose, onUploadComplete }) {
+export default function UploadModal({ albums = [], members, currentMember, existingPhotos = [], _storageConfig, onClose, onUploadComplete, selectedAlbumId: propAlbumId }) {
   const { user } = useAuth();
   const [title, setTitle] = useState('');
-  const [selectedAlbumId, setSelectedAlbumId] = useState('');
+  const [selectedAlbumId, setSelectedAlbumId] = useState(
+    (propAlbumId && propAlbumId !== 'ALL') ? propAlbumId : ''
+  );
   const [location, setLocation] = useState('');
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [tags, setTags] = useState([]);
