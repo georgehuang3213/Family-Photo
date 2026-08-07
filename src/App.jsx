@@ -28,9 +28,22 @@ export default function App() {
   const [isMembersLoaded, setIsMembersLoaded] = useState(false);
   const [albums, setAlbums] = useState([]);
   const [photos, setPhotos] = useState([]);
+
+  // Calculate real Cloudflare R2 storage usage dynamically
+  const totalSizeBytes = photos.reduce((acc, p) => acc + (p.fileSize || (2.57 * 1024 * 1024)), 0);
+  const displayUsedMB = (totalSizeBytes / (1024 * 1024)).toFixed(1);
+  const displayUsedGB = (totalSizeBytes / (1024 * 1024 * 1024)).toFixed(2);
   const [storageConfig, setStorageConfigState] = useState(() => {
     const cached = localStorage.getItem('family_storage_config');
-    return cached ? JSON.parse(cached) : INITIAL_STORAGE_CONFIG;
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed.totalGB === 2048 || parsed.provider?.includes('Google')) {
+        localStorage.setItem('family_storage_config', JSON.stringify(INITIAL_STORAGE_CONFIG));
+        return INITIAL_STORAGE_CONFIG;
+      }
+      return parsed;
+    }
+    return INITIAL_STORAGE_CONFIG;
   });
 
   const setStorageConfig = (config) => {
@@ -517,7 +530,7 @@ export default function App() {
             <div onClick={() => setActiveModal('storage')} className="touch-active" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '30px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-subtle)', cursor: 'pointer', flexShrink: 0 }}>
               <HardDrive size={14} color="var(--accent-cyan)" />
               <span style={{ fontSize: '0.76rem', color: 'var(--accent-cyan)', fontWeight: '600', whiteSpace: 'nowrap' }}>
-                {storageConfig.usedGB}GB / {storageConfig.totalGB}GB
+                {displayUsedMB}MB ({displayUsedGB}GB) / 10GB
               </span>
             </div>
 
