@@ -494,7 +494,16 @@ export default function App() {
             photoCount: photosArr.length,
             location
           })
-        }).catch(err => console.error('Telegram notification error:', err));
+        })
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.success) {
+            console.warn('Telegram notification status:', data);
+          } else {
+            console.log('Telegram notification sent successfully!');
+          }
+        })
+        .catch(err => console.error('Telegram notification error:', err));
       } catch (tgErr) {
         console.error('Failed to trigger Telegram notification:', tgErr);
       }

@@ -7,22 +7,20 @@ function escapeHtml(str) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  let cleanToken = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+  if (cleanToken.startsWith('bot')) {
+    cleanToken = cleanToken.slice(3);
   }
+  const chatId = (process.env.TELEGRAM_CHAT_ID || '').trim();
 
-  const { uploaderName, albumName, photoCount, location } = req.body || {};
-
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-
-  if (!botToken || !chatId) {
-    console.warn('Telegram Bot Token or Chat ID is not configured in environment variables.');
+  if (!cleanToken || !chatId) {
     return res.status(200).json({ 
       success: false, 
-      message: 'Telegram 變數 (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID) 未設定於 Vercel 環境變數中' 
+      error: 'TELEGRAM_BOT_TOKEN 或 TELEGRAM_CHAT_ID 未在 Vercel 環境變數中設定。請至 Vercel -> Settings -> Environment Variables 設定後重新部署 (Redeploy)。' 
     });
   }
+
+  const { uploaderName, albumName, photoCount, location } = req.body || req.query || {};
 
   const emoji = '📸';
   const timeStr = new Date().toLocaleString('zh-TW', { hour12: false, timeZone: 'Asia/Taipei' });
@@ -38,7 +36,7 @@ export default async function handler(req, res) {
   message += `🔗 <b>點此前往查看相簿：</b> <a href="https://brave-hubble.vercel.app">家族雲端相簿</a>`;
 
   try {
-    const tgUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+    const tgUrl = `https://api.telegram.org/bot${cleanToken}/sendMessage`;
     const response = await fetch(tgUrl, {
       method: 'POST',
       headers: {
@@ -56,12 +54,15 @@ export default async function handler(req, res) {
 
     if (!response.ok || !data.ok) {
       console.error('Telegram API error:', data);
-      return res.status(500).json({ error: data.description || 'Failed to send Telegram message' });
+      return res.status(400).json({ 
+        success: false, 
+        error: `Telegram API 回傳錯誤 (${data.error_code}): ${data.description || '發送失敗'}` 
+      });
     }
 
-    return res.status(200).json({ success: true });
+    return res.status(200).json({ success: true, message: 'Telegram 通知發送成功！' });
   } catch (error) {
     console.error('Failed to send Telegram notification:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
   }
 }
