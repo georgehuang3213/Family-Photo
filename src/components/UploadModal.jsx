@@ -140,10 +140,24 @@ export default function UploadModal({ albums = [], members, currentMember, exist
       while (queue.length > 0) {
         const item = queue.shift();
         if (!item) break;
-        const { file, i } = item;
+        let { file, i } = item;
 
-        let photoUrl = null;
-        let r2Key = null;
+        // Auto-convert HEIC/HEIF files to JPG on mobile devices that support it natively
+        if (file.name.toLowerCase().endsWith('.heic') || file.type === 'image/heic') {
+          try {
+            // Convert to high-quality 2K JPEG using native browser canvas decoding
+            const dataUrl = await compressImage(file, 2048, 0.88);
+            const res = await fetch(dataUrl);
+            const blob = await res.blob();
+            const newName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
+            file = new File([blob], newName, { type: 'image/jpeg' });
+          } catch (heicErr) {
+            console.warn('HEIC to JPEG conversion failed, uploading original file:', heicErr);
+          }
+        }
+
+        let photoUrl = '';
+        let r2Key = '';
 
         try {
           const r2Data = await uploadToR2(file);
