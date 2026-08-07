@@ -2,16 +2,6 @@ export const INITIAL_FAMILY_MEMBERS = [];
 
 export const INITIAL_ALBUMS = [
   {
-    id: 'alb-all',
-    title: '📸 全家福相片總集',
-    category: '日常紀錄',
-    description: '包含所有家族成員上傳的相片與共享紀錄',
-    location: '家族雲端',
-    date: '2026-01-01',
-    coverImage: null,
-    isDefault: true
-  },
-  {
     id: 'alb-celebration',
     title: '🎉 家族慶典與聚會',
     category: '家族慶典',
@@ -34,13 +24,12 @@ export const INITIAL_ALBUMS = [
 export const INITIAL_PHOTOS = [];
 
 export const INITIAL_STORAGE_CONFIG = {
-  provider: 'Google AI Pro (Google One)',
-  planName: 'Google One AI Premium (2TB)',
+  provider: 'Cloudflare R2 Object Storage',
+  planName: 'Cloudflare R2 (100% 無損實體儲存)',
   connectedEmail: 'family.hub.cloud@gmail.com',
-  usedGB: 428.5,
-  totalGB: 2048,
+  usedGB: 12.4,
+  totalGB: 100,
   autoBackupMobile: true,
   rawStorageEnabled: true,
   familyMembersSharedCount: 6
 };
-
