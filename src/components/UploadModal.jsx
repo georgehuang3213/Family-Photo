@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Upload, Check, ShieldCheck, HardDrive } from 'lucide-react';
+import { X, Upload, Check, ShieldCheck, HardDrive, RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadToR2 } from '../utils/r2Storage';
@@ -53,10 +53,60 @@ export default function UploadModal({ albums = [], members, currentMember, exist
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadErrorMessage, setUploadErrorMessage] = useState(null);
   const [skippedDuplicateCount, setSkippedDuplicateCount] = useState(0);
+  const [isConvertingHeic, setIsConvertingHeic] = useState(false);
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const rawFiles = Array.from(e.target.files);
     if (!rawFiles.length) return;
+
+    // Check if there are any HEIC files
+    const hasHeic = rawFiles.some(file => file.name.toLowerCase().endsWith('.heic') || file.type === 'image/heic');
+
+    let processedFiles = [];
+    if (hasHeic) {
+      setIsConvertingHeic(true);
+      try {
+        const heic2anyModule = await import('heic2any');
+        const heic2any = heic2anyModule.default || heic2anyModule;
+
+        for (let file of rawFiles) {
+          if (file.name.toLowerCase().endsWith('.heic') || file.type === 'image/heic') {
+            try {
+              const convertedBlob = await heic2any({
+                blob: file,
+                toType: 'image/jpeg',
+                quality: 0.85
+              });
+              const newName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
+              const blobToUse = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+              processedFiles.push(new File([blobToUse], newName, { type: 'image/jpeg' }));
+            } catch (err) {
+              console.warn('Failed to convert HEIC file in file change:', file.name, err);
+              // Fallback: try compressImage native conversion if possible
+              try {
+                const dataUrl = await compressImage(file, 2048, 0.88);
+                const res = await fetch(dataUrl);
+                const blob = await res.blob();
+                const newName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
+                processedFiles.push(new File([blob], newName, { type: 'image/jpeg' }));
+              } catch (fallbackErr) {
+                console.error('Fallback conversion also failed, keeping original:', fallbackErr);
+                processedFiles.push(file);
+              }
+            }
+          } else {
+            processedFiles.push(file);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load heic2any library:', err);
+        processedFiles = rawFiles;
+      } finally {
+        setIsConvertingHeic(false);
+      }
+    } else {
+      processedFiles = rawFiles;
+    }
 
     const existingSignatures = new Set(
       (existingPhotos || []).map(p => `${p.originalFileName || p.title}_${p.fileSize || 0}`)
@@ -66,7 +116,7 @@ export default function UploadModal({ albums = [], members, currentMember, exist
     const files = [];
     let skipped = 0;
 
-    for (const file of rawFiles) {
+    for (const file of processedFiles) {
       const sig = `${file.name}_${file.size}`;
       const titleSig = `${file.name.replace(/\.[^/.]+$/, "")}_${file.size}`;
 
@@ -269,8 +319,14 @@ export default function UploadModal({ albums = [], members, currentMember, exist
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Drop Zone */}
           <div style={{ border: '2px dashed var(--border-active)', borderRadius: 'var(--radius-md)', padding: '20px', textAlign: 'center', background: 'rgba(99,102,241,0.05)', position: 'relative', cursor: 'pointer' }}>
-            <input type="file" accept="image/*" multiple onChange={handleFileChange} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
-            {previewUrls.length > 0 ? (
+            <input type="file" accept="image/*,.heic,.HEIC" multiple onChange={handleFileChange} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} disabled={isConvertingHeic} />
+            {isConvertingHeic ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '24px 0' }}>
+                <RefreshCw size={36} color="var(--accent-indigo)" style={{ animation: 'spin 1.5s linear infinite' }} />
+                <p style={{ fontWeight: '600', fontSize: '0.95rem', color: 'var(--text-main)' }}>正在轉換 HEIC 照片格式...</p>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>正在自動轉為 JPEG 格式，以確保電腦與 Android 裝置可順利觀看</p>
+              </div>
+            ) : previewUrls.length > 0 ? (
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
                 {previewUrls.slice(0, 5).map((url, i) => (
                   <img key={i} src={url} alt="" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
@@ -363,9 +419,9 @@ export default function UploadModal({ albums = [], members, currentMember, exist
           )}
 
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '4px' }}>
-            <button type="button" className="btn btn-secondary" onClick={onClose} disabled={isUploading}>取消</button>
-            <button type="submit" className="btn btn-primary" disabled={isUploading || !previewUrls.length}>
-              {isUploading ? '處理中...' : `⚡ 極速上傳`}
+            <button type="button" className="btn btn-secondary" onClick={onClose} disabled={isUploading || isConvertingHeic}>取消</button>
+            <button type="submit" className="btn btn-primary" disabled={isUploading || isConvertingHeic || !previewUrls.length}>
+              {isUploading ? '處理中...' : isConvertingHeic ? '轉換中...' : `⚡ 極速上傳`}
             </button>
           </div>
         </form>

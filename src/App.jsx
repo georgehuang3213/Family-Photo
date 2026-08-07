@@ -12,6 +12,7 @@ import StorageConfigModal from './components/StorageConfigModal';
 import NicknameModal from './components/NicknameModal';
 import InviteModal from './components/InviteModal';
 import CreateAlbumModal from './components/CreateAlbumModal';
+import SafeImage from './components/SafeImage';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import { getAllPhotosFromDB, savePhotoToDB, savePhotosToDB, deletePhotoFromDB } from './utils/photoStorage';
@@ -837,7 +838,7 @@ export default function App() {
                     <div className="glass-panel touch-active" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer', position: 'relative', height: '100%' }}>
                       {/* Image */}
                       <div style={{ height: '210px', overflow: 'hidden', position: 'relative', background: '#000' }}>
-                        <img src={photo.url} alt={photo.title} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
+                        <SafeImage src={photo.url} alt={photo.title} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
                           onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
                           onMouseLeave={e => e.currentTarget.style.transform = 'scale(1.0)'} />
 

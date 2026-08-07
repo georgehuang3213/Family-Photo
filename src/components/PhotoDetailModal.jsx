@@ -3,6 +3,7 @@ import { X, Heart, Download, MapPin, Calendar, MessageSquare, Send, Trash2, Refr
 import PhotoEditor from './PhotoEditor';
 import confetti from 'canvas-confetti';
 import { uploadToR2 } from '../utils/r2Storage';
+import SafeImage from './SafeImage';
 
 export default function PhotoDetailModal({ 
   photo, albums = [], members = [], currentUser, onClose, 
@@ -211,7 +212,7 @@ export default function PhotoDetailModal({
             <X size={20} />
           </button>
 
-          <img src={photo.url} alt={photo.title} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 16px 48px rgba(0,0,0,0.8)' }} />
+          <SafeImage src={photo.url} alt={photo.title} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 16px 48px rgba(0,0,0,0.8)' }} />
 
           {/* Action buttons overlay */}
           <div style={{ position: 'absolute', bottom: '20px', right: '20px', display: 'flex', gap: '8px' }}>
