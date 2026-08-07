@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Heart, Download, MapPin, Calendar, MessageSquare, Send, Trash2, RefreshCw, Edit3, Check } from 'lucide-react';
 import PhotoEditor from './PhotoEditor';
 import confetti from 'canvas-confetti';
+import { uploadToR2 } from '../utils/r2Storage';
 
 export default function PhotoDetailModal({ 
   photo, albums = [], members = [], currentUser, onClose, 
@@ -37,12 +38,36 @@ export default function PhotoDetailModal({
     a.click();
   };
 
-  const handleSaveEdited = async (newUrl) => {
-    const updated = { ...photo, url: newUrl };
-    if (onUpdatePhoto) {
-      await onUpdatePhoto(updated);
-    }
+  const handleSaveEdited = async (id, newUrl) => {
     setIsEditing(false);
+    try {
+      // Convert base64 data URI to File
+      const res = await fetch(newUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `edited_${photo.title || 'photo'}.jpg`, { type: 'image/jpeg' });
+      
+      const r2Data = await uploadToR2(file);
+      
+      let finalUrl = newUrl;
+      let newR2Key = photo.r2Key;
+      
+      if (r2Data?.success && r2Data?.url) {
+        finalUrl = r2Data.url;
+        newR2Key = r2Data.key;
+      }
+      
+      const updated = { ...photo, url: finalUrl, r2Key: newR2Key };
+      if (onUpdatePhoto) {
+        await onUpdatePhoto(updated);
+      }
+    } catch (err) {
+      console.error('Failed to save edited photo to R2:', err);
+      // Fallback to data URI if R2 fails
+      const updated = { ...photo, url: newUrl };
+      if (onUpdatePhoto) {
+        await onUpdatePhoto(updated);
+      }
+    }
   };
 
   const handleSaveInfo = async () => {
