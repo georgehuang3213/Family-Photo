@@ -473,6 +473,31 @@ export default function App() {
     try {
       await savePhotosToDB(photosArr);
       await savePhotosToCloud(photosArr);
+      
+      // Trigger Telegram Notification (fire and forget)
+      try {
+        const uploaderId = photosArr[0]?.uploader;
+        const uploaderName = members.find(m => m.id === uploaderId)?.name || '家族成員';
+        const albumId = photosArr[0]?.albumId;
+        const albumName = albums.find(a => a.id === albumId)?.title || '未分類相簿';
+        const location = photosArr[0]?.location || '';
+        
+        fetch('/api/send-tg-notification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            uploaderName,
+            albumName,
+            photoCount: photosArr.length,
+            location
+          })
+        }).catch(err => console.error('Telegram notification error:', err));
+      } catch (tgErr) {
+        console.error('Failed to trigger Telegram notification:', tgErr);
+      }
+
       // Firestore's onSnapshot listener automatically and instantly handles adding photos to the UI.
     } catch (err) {
       console.error('Failed to batch save uploaded photos to cloud, using local fallback:', err);
