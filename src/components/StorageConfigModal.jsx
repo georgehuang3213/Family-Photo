@@ -5,8 +5,8 @@ import confetti from 'canvas-confetti';
 const PROVIDERS = [
   { 
     id: 'r2', 
-    name: 'Cloudflare R2 Object Storage', 
-    desc: '實體圖檔 100% 獨佔儲存庫 (免流量費 $0 Egress CDN)', 
+    name: 'Cloudflare R2 Object Storage (family-photo)', 
+    desc: '實體圖檔 100% 獨佔儲存桶 (免流量費 $0 Egress CDN)', 
     icon: '☁️', 
     egressCost: '$0 / GB',
     status: '使用中 (Active - 獨佔實體圖床)'
@@ -21,7 +21,7 @@ const PROVIDERS = [
   }
 ];
 
-export default function StorageConfigModal({ storageConfig, onClose, onSaveConfig }) {
+export default function StorageConfigModal({ storageConfig, photos = [], onClose, onSaveConfig }) {
   const [selectedProvider, setSelectedProvider] = useState('r2');
   const [email, _setEmail] = useState(storageConfig.connectedEmail || 'family.hub.cloud@gmail.com');
   const [autoBackup, setAutoBackup] = useState(storageConfig.autoBackupMobile ?? true);
@@ -39,9 +39,12 @@ export default function StorageConfigModal({ storageConfig, onClose, onSaveConfi
     onClose();
   };
 
-  const usedGB = storageConfig.usedGB || 12.4;
-  const totalGB = storageConfig.totalGB || 100;
-  const percentage = Math.round((usedGB / totalGB) * 100);
+  // Calculate real Cloudflare R2 storage usage dynamically from photos
+  const totalSizeBytes = photos.reduce((acc, p) => acc + (p.fileSize || (2.57 * 1024 * 1024)), 0);
+  const usedMB = (totalSizeBytes / (1024 * 1024)).toFixed(2);
+  const usedGB = (totalSizeBytes / (1024 * 1024 * 1024)).toFixed(3);
+  const totalGB = storageConfig.totalGB || 10; // Cloudflare R2 10 GB Free Tier
+  const percentage = Math.min(100, Math.max(0.1, ((totalSizeBytes / (10 * 1024 * 1024 * 1024)) * 100).toFixed(1)));
 
   return (
     <div className="modal-overlay">
@@ -55,7 +58,7 @@ export default function StorageConfigModal({ storageConfig, onClose, onSaveConfi
             </div>
             <div>
               <h3 style={{ fontSize: '1.2rem', fontWeight: '700' }}>Cloudflare R2 家族雲端儲存配置</h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>實體圖檔 100% 獨佔儲存與邊緣 CDN 極速快取</p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>儲存桶：family-photo · 免費提供 10 GB 儲存空間</p>
             </div>
           </div>
           <button className="btn-icon" onClick={onClose}>
@@ -63,22 +66,22 @@ export default function StorageConfigModal({ storageConfig, onClose, onSaveConfi
           </button>
         </div>
 
-        {/* Current Capacity Progress */}
+        {/* Real Cloudflare R2 Capacity Progress */}
         <div style={{ background: 'rgba(99, 102, 241, 0.08)', border: '1px solid var(--border-active)', padding: '16px', borderRadius: '14px', marginBottom: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <span style={{ fontSize: '0.88rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <ShieldCheck size={16} color="var(--accent-emerald)" /> Cloudflare R2 儲存桶狀態 (S3-Compatible)
+              <ShieldCheck size={16} color="var(--accent-emerald)" /> Cloudflare R2 儲存用量 (family-photo)
             </span>
             <span style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--accent-cyan)' }}>
-              {usedGB} GB / {totalGB} GB ({percentage}%)
+              {usedMB} MB ({usedGB} GB) / {totalGB} GB ({percentage}%)
             </span>
           </div>
           <div style={{ width: '100%', height: '10px', background: 'rgba(0,0,0,0.3)', borderRadius: '5px', overflow: 'hidden' }}>
-            <div style={{ width: `${percentage}%`, height: '100%', background: 'var(--gradient-main)', borderRadius: '5px' }} />
+            <div style={{ width: `${Math.max(percentage, 1)}%`, height: '100%', background: 'var(--gradient-main)', borderRadius: '5px' }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px' }}>
-            <span>傳輸流量費：$0 Egress (免費)</span>
-            <span>共享家族成員：{storageConfig.familyMembersSharedCount || 6} 位</span>
+            <span>已託管物件：{photos.length} 張家族照片</span>
+            <span>月傳輸流量費：$0 Egress (免費)</span>
           </div>
         </div>
 

@@ -27,8 +27,8 @@ export const INITIAL_STORAGE_CONFIG = {
   provider: 'Cloudflare R2 Object Storage',
   planName: 'Cloudflare R2 (100% 無損實體儲存)',
   connectedEmail: 'family.hub.cloud@gmail.com',
-  usedGB: 12.4,
-  totalGB: 100,
+  bucketName: 'family-photo',
+  totalGB: 10,
   autoBackupMobile: true,
   rawStorageEnabled: true,
   familyMembersSharedCount: 6
