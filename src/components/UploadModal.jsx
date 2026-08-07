@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { X, Upload, Check, Cloud, MapPin, Tag, User, ShieldCheck, Folder, HardDrive, Zap } from 'lucide-react';
+import { X, Upload, Check, ShieldCheck, HardDrive } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useAuth } from '../contexts/AuthContext';
-import { uploadToGoogleDrive } from '../utils/googleDrive';
+import { uploadToR2 } from '../utils/r2Storage';
 
-// Fast high-quality image compression (< 0.2s)
-function compressImage(file, maxWidth = 1200, quality = 0.75) {
+// Fast high-quality image compression (< 0.2s, target ~200KB for fallback)
+function compressImage(file, maxWidth = 800, quality = 0.65) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -37,38 +37,80 @@ function compressImage(file, maxWidth = 1200, quality = 0.75) {
   });
 }
 
-export default function UploadModal({ albums = [], members, currentMember, storageConfig, onClose, onUploadComplete }) {
-  const { accessToken } = useAuth();
+export default function UploadModal({ albums = [], members, currentMember, existingPhotos = [], _storageConfig, onClose, onUploadComplete }) {
+  const { user } = useAuth();
   const [title, setTitle] = useState('');
+  const [selectedAlbumId, setSelectedAlbumId] = useState('');
   const [location, setLocation] = useState('');
-  const [selectedAlbumId, setSelectedAlbumId] = useState(albums[0]?.id || '');
-  const [selectedMembers, setSelectedMembers] = useState(currentMember ? [currentMember.id] : []);
+  const [selectedMembers, setSelectedMembers] = useState([]);
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState('');
-  const [previewUrls, setPreviewUrls] = useState([]);
   const [fileObjects, setFileObjects] = useState([]);
+  const [previewUrls, setPreviewUrls] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadErrorMessage, setUploadErrorMessage] = useState(null);
+  const [skippedDuplicateCount, setSkippedDuplicateCount] = useState(0);
 
   const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    if (!files.length) return;
+    const rawFiles = Array.from(e.target.files);
+    if (!rawFiles.length) return;
+
+    const existingSignatures = new Set(
+      (existingPhotos || []).map(p => `${p.originalFileName || p.title}_${p.fileSize || 0}`)
+    );
+
+    const seenInBatch = new Set();
+    const files = [];
+    let skipped = 0;
+
+    for (const file of rawFiles) {
+      const sig = `${file.name}_${file.size}`;
+      const titleSig = `${file.name.replace(/\.[^/.]+$/, "")}_${file.size}`;
+
+      if (existingSignatures.has(sig) || existingSignatures.has(titleSig) || seenInBatch.has(sig)) {
+        skipped++;
+      } else {
+        seenInBatch.add(sig);
+        files.push(file);
+      }
+    }
+
+    setSkippedDuplicateCount(skipped);
+
+    if (!files.length) {
+      setFileObjects([]);
+      setPreviewUrls([]);
+      return;
+    }
+
     setFileObjects(files);
-    const urls = files.map(f => URL.createObjectURL(f));
+    const urls = files.map(file => URL.createObjectURL(file));
     setPreviewUrls(urls);
-    if (!title && files[0]) setTitle(files[0].name.replace(/\.[^/.]+$/, ''));
+
+    if (!title && files.length === 1) {
+      setTitle(files[0].name.replace(/\.[^/.]+$/, ""));
+    } else if (!title && files.length > 1) {
+      setTitle(`家族照片包 (${files.length}張)`);
+    }
   };
 
-  const toggleMember = (id) => {
-    setSelectedMembers(prev =>
-      prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]
+  React.useEffect(() => {
+    return () => { previewUrls.forEach(url => URL.revokeObjectURL(url)); };
+  }, [previewUrls]);
+
+  const toggleMember = (mId) => {
+    setSelectedMembers(prev => 
+      prev.includes(mId) ? prev.filter(x => x !== mId) : [...prev, mId]
     );
   };
 
   const handleAddTag = (e) => {
     if (e.key === 'Enter' && tagInput.trim()) {
       e.preventDefault();
-      if (!tags.includes(tagInput.trim())) setTags([...tags, tagInput.trim()]);
+      if (!tags.includes(tagInput.trim())) {
+        setTags([...tags, tagInput.trim()]);
+      }
       setTagInput('');
     }
   };
@@ -77,69 +119,132 @@ export default function UploadModal({ albums = [], members, currentMember, stora
     e.preventDefault();
     if (!fileObjects.length && !previewUrls.length) return;
     setIsUploading(true);
-    setUploadProgress(40);
+    setUploadProgress(5);
+    setUploadErrorMessage(null);
 
-    try {
-      // 1. Ultra-fast parallel image compression (< 0.2s)
-      const compressedUrls = await Promise.all(
-        fileObjects.map(file => compressImage(file))
-      );
+    const total = fileObjects.length;
+    let completed = 0;
+    const processedPhotos = [];
 
-      setUploadProgress(90);
+    // Helper for chunked upload execution with concurrency limit = 3
+    const CONCURRENCY_LIMIT = 3;
+    const queue = fileObjects.map((file, i) => ({ file, i }));
 
-      const newPhotos = compressedUrls.map((url, i) => ({
-        id: `photo-${Date.now()}-${i}`,
-        albumId: selectedAlbumId || null,
-        title: compressedUrls.length > 1 ? `${title} (${i + 1})` : title || '家族照片',
-        url,
-        date: new Date().toLocaleString('zh-TW', { hour12: false }),
-        location: location || '',
-        uploader: currentMember?.id || 'admin',
-        members: selectedMembers,
-        likes: 0,
-        isFavorite: false,
-        tags,
-        comments: [],
-        timestamp: Date.now() + i
-      }));
+    const worker = async () => {
+      while (queue.length > 0) {
+        const item = queue.shift();
+        if (!item) break;
+        const { file, i } = item;
 
-      setUploadProgress(100);
-      confetti({ particleCount: 80, spread: 65, origin: { y: 0.65 } });
-      
-      // Immediate UI update & Firestore sync across all devices
-      newPhotos.forEach(p => onUploadComplete(p));
-      onClose();
+        let photoUrl = null;
+        let r2Key = null;
 
-      // 2. Non-blocking async background backup to Google Drive / Google One
-      if (accessToken) {
-        fileObjects.forEach(file => {
-          uploadToGoogleDrive(file, accessToken).catch(err => console.warn('Background drive upload:', err));
+        try {
+          const r2Data = await uploadToR2(file);
+          if (r2Data?.success && r2Data?.url) {
+            photoUrl = r2Data.url;
+            r2Key = r2Data.key;
+          } else if (r2Data?.error) {
+            console.warn('Cloudflare R2 upload rejected:', r2Data.error);
+            setUploadErrorMessage(r2Data.error);
+          }
+        } catch (r2Err) {
+          console.error('R2 upload error:', r2Err);
+          setUploadErrorMessage(r2Err.message || '上傳失敗');
+        }
+
+        // Fallback to compressed Base64 only if R2 upload fails
+        if (!photoUrl) {
+          console.warn('Falling back to local compressed storage for file:', file.name);
+          photoUrl = await compressImage(file);
+        }
+
+        completed++;
+        setUploadProgress(5 + Math.round((completed / total) * 90));
+
+        processedPhotos.push({
+          id: crypto.randomUUID ? crypto.randomUUID() : `photo-${Date.now()}-${Math.random().toString(36).slice(2)}-${i}`,
+          albumId: selectedAlbumId || 'alb-all',
+          title: fileObjects.length > 1 ? `${title} (${i + 1})` : title || '家族照片',
+          url: photoUrl,
+          driveFileId: null,
+          r2Key: r2Key || null,
+          originalFileName: file.name,
+          fileSize: file.size,
+          date: new Date().toLocaleString('zh-TW', { hour12: false }),
+          location: location || '',
+          uploader: currentMember?.id || user?.uid || 'admin',
+          members: selectedMembers,
+          likes: 0,
+          isFavorite: false,
+          tags,
+          comments: [],
+          timestamp: Date.now() + i
         });
       }
-    } catch (err) {
-      console.error('Error processing upload files:', err);
-      setIsUploading(false);
+    };
+
+    const workers = [];
+    for (let w = 0; w < Math.min(CONCURRENCY_LIMIT, total); w++) {
+      workers.push(worker());
     }
+
+    await Promise.all(workers);
+
+    setUploadProgress(100);
+    confetti({ particleCount: 80, spread: 65, origin: { y: 0.65 } });
+    
+    // Sort by timestamp descending
+    processedPhotos.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    // Batch update local & cloud state in one shot
+    onUploadComplete(processedPhotos);
+    onClose();
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="glass-panel animate-fade-in" style={{ width: '90vw', maxWidth: '600px', padding: '28px' }}>
+    <div className="modal-overlay" onClick={() => !isUploading && onClose()}>
+      <div className="glass-panel animate-fade-in" onClick={e => e.stopPropagation()} style={{ width: '90vw', maxWidth: '600px', padding: '28px', maxHeight: '90vh', overflowY: 'auto' }}>
+        
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'var(--gradient-main)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Upload size={20} color="#fff" />
+              <Upload size={22} color="#fff" />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: '700' }}>上傳照片至家族雲端</h3>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Zap size={13} color="var(--accent-amber)" /> 極速秒傳 · 自動同步全裝置
-              </p>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: '700' }}>上傳家族照片</h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>支援整包批次上傳與 Cloudflare R2 雲端儲存</p>
             </div>
           </div>
-          <button className="btn-icon" onClick={onClose} disabled={isUploading}><X size={18} /></button>
+          <button className="btn-icon" onClick={onClose} disabled={isUploading}>
+            <X size={18} />
+          </button>
         </div>
+
+        {/* Cloudflare R2 Storage Banner */}
+        <div style={{ background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.3)', padding: '10px 14px', borderRadius: '10px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: '0.8rem', color: '#a5b4fc', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <HardDrive size={15} color="var(--accent-indigo)" />
+            已啟用 Cloudflare R2 雲端儲存（支援 100% 無損原檔儲存）
+          </div>
+        </div>
+
+        {/* Duplicate Photo Filter Banner */}
+        {skippedDuplicateCount > 0 && (
+          <div style={{ background: 'rgba(99, 102, 241, 0.18)', border: '1px solid rgba(99, 102, 241, 0.4)', padding: '10px 14px', borderRadius: '10px', marginBottom: '16px', fontSize: '0.82rem', color: '#a5b4fc', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <ShieldCheck size={16} color="var(--accent-emerald)" />
+            已自動過濾掉 {skippedDuplicateCount} 張重複上傳的照片（僅處理新圖片）
+          </div>
+        )}
+
+        {/* Cloudflare R2 Upload Error Banner */}
+        {uploadErrorMessage && (
+          <div style={{ background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', padding: '10px 14px', borderRadius: '10px', marginBottom: '16px', fontSize: '0.8rem', color: '#fb7185', fontWeight: '600', lineHeight: '1.4' }}>
+            ⚠️ Cloudflare R2 雲端寫入警告：{uploadErrorMessage}。<br />
+            相片已自動降級儲存，請確認 Cloudflare R2 金鑰與 CORS 設定。
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Drop Zone */}

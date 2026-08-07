@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, UserPlus, Trash2, Copy, Check, ShieldCheck, Mail, Crown } from 'lucide-react';
+import { X, UserPlus, Trash2, Copy, Check, Mail, Crown } from 'lucide-react';
 import { useAuth, ADMIN_EMAIL } from '../contexts/AuthContext';
 import confetti from 'canvas-confetti';
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Check, Sparkles, Smile } from 'lucide-react';
+import { Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 const EMOJI_OPTIONS = ['👨', '👩', '👵', '👴', '🧑‍💻', '👧', '👦', '🧔', '👩‍🦱', '👑', '🌟', '✨'];

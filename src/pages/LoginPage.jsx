@@ -1,9 +1,9 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Images, Sparkles, ShieldCheck, LogIn } from 'lucide-react';
+import { Images, Sparkles, ShieldCheck, ShieldX } from 'lucide-react';
 
 export default function LoginPage() {
-  const { loginWithGoogle, authError } = useAuth();
+  const { loginWithGoogle, authError, accessDenied } = useAuth();
 
   return (
     <div style={{
@@ -39,8 +39,22 @@ export default function LoginPage() {
           <Sparkles size={12} /> Google AI Pro · 雲端加密保護
         </span>
 
-        {/* Error Message */}
-        {authError && (
+        {/* Access Denied Banner */}
+        {accessDenied && (
+          <div style={{ background: 'rgba(244,63,94,0.10)', border: '1px solid rgba(244,63,94,0.35)', borderRadius: '14px', padding: '18px 18px', marginBottom: '20px', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <ShieldX size={20} color="#f43f5e" style={{ flexShrink: 0 }} />
+              <strong style={{ color: '#f43f5e', fontSize: '0.95rem' }}>帳號未獲授權</strong>
+            </div>
+            <p style={{ color: '#fb7185', fontSize: '0.83rem', lineHeight: '1.55', margin: 0 }}>
+              您的 Google 帳號<strong>尚未被管理員加入此家族相簿</strong>。<br />
+              請聯絡家族管理員，請他們在「邀請成員」功能中新增您的 Gmail 信箱後，再重新登入。
+            </p>
+          </div>
+        )}
+
+        {/* General Error Message */}
+        {authError && !accessDenied && (
           <div style={{ background: 'rgba(244,63,94,0.12)', border: '1px solid rgba(244,63,94,0.3)', borderRadius: '12px', padding: '12px 16px', marginBottom: '20px', fontSize: '0.85rem', color: '#fb7185', textAlign: 'left' }}>
             ⚠️ {authError}
           </div>

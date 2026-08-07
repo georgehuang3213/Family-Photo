@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Cloud, HardDrive, Check, ShieldCheck, RefreshCw, Cpu, Database, Sparkles } from 'lucide-react';
+import { X, HardDrive, Check, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 const PROVIDERS = [
@@ -39,7 +39,7 @@ const PROVIDERS = [
 
 export default function StorageConfigModal({ storageConfig, onClose, onSaveConfig }) {
   const [selectedProvider, setSelectedProvider] = useState('google');
-  const [email, setEmail] = useState(storageConfig.connectedEmail);
+  const [email, _setEmail] = useState(storageConfig.connectedEmail);
   const [autoBackup, setAutoBackup] = useState(storageConfig.autoBackupMobile);
   const [rawStorage, setRawStorage] = useState(storageConfig.rawStorageEnabled);
 

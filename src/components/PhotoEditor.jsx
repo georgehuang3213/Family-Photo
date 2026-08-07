@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   RotateCw, FlipHorizontal, Crop, Sparkles, Sliders, Type, 
-  Check, X, Download, Wand2, RefreshCw, ZoomIn, ZoomOut
+  Check, X, Wand2, RefreshCw
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 

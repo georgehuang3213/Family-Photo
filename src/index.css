@@ -230,47 +230,13 @@ body {
   scrollbar-width: none;
 }
 
-@media (max-width: 768px) {
-  .modal-overlay {
-    padding: 10px;
-    align-items: flex-end;
-  }
-
-  /* Mobile modals slide up like iOS bottom sheets */
-  .modal-overlay > .glass-panel {
-    width: 100% !important;
-    max-width: 100% !important;
-    max-height: 92vh !important;
-    overflow-y: auto;
-    border-bottom-left-radius: 0 !important;
-    border-bottom-right-radius: 0 !important;
-    border-top-left-radius: 20px !important;
-    border-top-right-radius: 20px !important;
-  }
-
-  /* Photo detail modal fullscreen on mobile */
-  .photo-detail-modal {
-    flex-direction: column !important;
-    height: 95vh !important;
-    max-height: 95vh !important;
-    overflow-y: auto !important;
-  }
-  .photo-detail-modal > div:first-child {
-    min-height: 300px !important;
-    height: 45vh !important;
-    flex: none !important;
-  }
-  .photo-detail-modal > div:last-child {
-    width: 100% !important;
-    flex: 1 !important;
-  }
-
-  .btn {
-    min-height: 42px;
-  }
+/* Touch active feedback */
+.touch-active:active {
+  transform: scale(0.97);
+  transition: transform 0.1s ease;
 }
 
-/* Responsive Photo Grid */
+/* Responsive Photo & Album Grid */
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -283,13 +249,262 @@ body {
   gap: 22px;
 }
 
-@media (max-width: 640px) {
+/* Mobile Layout Breakpoint (< 768px) */
+@media (max-width: 768px) {
+  body {
+    padding-bottom: 70px; /* Space for Mobile Bottom Nav Bar */
+  }
+
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  /* Mobile modals slide up like iOS bottom sheets */
+  .modal-overlay > .glass-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 90vh !important;
+    overflow-y: auto;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-top-left-radius: 24px !important;
+    border-top-right-radius: 24px !important;
+    padding: 20px 16px !important;
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  /* Photo detail modal fullscreen on mobile */
+  .photo-detail-modal {
+    flex-direction: column !important;
+    height: 92vh !important;
+    max-height: 92vh !important;
+    overflow-y: auto !important;
+  }
+  .photo-detail-modal > div:first-child {
+    min-height: 260px !important;
+    height: 40vh !important;
+    flex: none !important;
+  }
+  .photo-detail-modal > div:last-child {
+    width: 100% !important;
+    flex: 1 !important;
+    padding: 16px !important;
+  }
+
+  .btn {
+    min-height: 44px; /* Apple minimum touch target */
+    font-size: 0.85rem;
+  }
+
   .photo-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
   }
+
   .album-grid {
     grid-template-columns: 1fr;
-    gap: 14px;
+    gap: 12px;
+  }
+
+  /* Mobile Header Layout */
+  .header-container {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  .header-top-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+  }
+  .header-controls {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    overflow-x: auto !important;
+    padding-bottom: 2px !important;
+  }
+  .search-container {
+    max-width: 100% !important;
+    width: 100% !important;
   }
 }
+
+/* Mobile Bottom Navigation Bar */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    background: rgba(9, 13, 22, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border-subtle);
+    z-index: 999;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 8px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+  }
+
+  .mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    font-weight: 600;
+    cursor: pointer;
+    flex: 1;
+    padding: 6px 0;
+    transition: all 0.2s ease;
+  }
+
+  .mobile-nav-item.active {
+    color: var(--accent-primary);
+  }
+
+  .mobile-nav-fab {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: var(--gradient-main);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.6);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    margin-top: -20px;
+  }
+}
+
+/* ── BATCH SELECTION & ALBUM ACTIONS ─────────────────────────────────── */
+.batch-action-bar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(120%);
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 50px;
+  padding: 12px 28px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(99, 102, 241, 0.15);
+  z-index: 1000;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  width: 90vw;
+  max-width: 520px;
+  justify-content: space-between;
+}
+.batch-action-bar.visible {
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (max-width: 768px) {
+  .batch-action-bar {
+    bottom: 80px; /* Float above mobile bottom nav */
+    padding: 10px 20px;
+  }
+}
+
+.photo-select-overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.2s ease;
+  color: #fff;
+}
+.photo-select-overlay.selected {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.8);
+}
+
+.photo-card-wrapper {
+  position: relative;
+  transition: transform 0.2s ease;
+}
+.photo-card-wrapper.selected {
+  transform: scale(0.96);
+}
+.photo-card-wrapper.selected .photo-card {
+  border: 2.5px solid var(--accent-primary) !important;
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+}
+
+.album-card-wrapper {
+  position: relative;
+}
+.album-delete-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(244, 63, 94, 0.15);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  color: #f43f5e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(8px);
+}
+.album-card-wrapper:hover .album-delete-btn {
+  opacity: 1;
+  transform: scale(1);
+}
+.album-delete-btn:hover {
+  background: #f43f5e !important;
+  color: #fff !important;
+  transform: scale(1.1) !important;
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.5);
+}
+
+/* Ensure mobile displays delete icon constantly instead of hover only */
+@media (max-width: 768px) {
+  .album-delete-btn {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+
