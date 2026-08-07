@@ -36,6 +36,8 @@ export default function PhotoEditor({ photo, onClose, onSave }) {
   const imgRef = useRef(null);
   const [imageLoaded, setImageLoaded] = useState(false);
 
+  const [imageError, setImageError] = useState(false);
+
   // Load Image
   useEffect(() => {
     const img = new Image();
@@ -44,6 +46,11 @@ export default function PhotoEditor({ photo, onClose, onSave }) {
     img.onload = () => {
       imgRef.current = img;
       setImageLoaded(true);
+      setImageError(false);
+    };
+    img.onerror = () => {
+      console.error('Failed to load image for editing. This may be due to missing CORS configuration on your Cloudflare R2 bucket.');
+      setImageError(true);
     };
   }, [photo.url]);
 
@@ -155,9 +162,16 @@ export default function PhotoEditor({ photo, onClose, onSave }) {
           
           {/* Main Canvas Viewport */}
           <div style={{ flex: 1, background: '#04070d', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', position: 'relative', overflow: 'hidden' }}>
-            {!imageLoaded && (
+            {!imageLoaded && !imageError && (
               <div style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <RefreshCw className="animate-spin" size={20} /> 正在從雲端下載高畫質照片...
+              </div>
+            )}
+            {imageError && (
+              <div style={{ color: '#f43f5e', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center', maxWidth: '300px' }}>
+                <X size={32} />
+                <h4 style={{ fontWeight: 'bold' }}>無法載入照片進行編輯</h4>
+                <p style={{ fontSize: '0.85rem' }}>這可能是因為您的 Cloudflare R2 儲存桶尚未設定 CORS 規則，導致瀏覽器拒絕讀取圖片資料。</p>
               </div>
             )}
             <canvas 
