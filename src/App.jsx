@@ -14,9 +14,9 @@ import InviteModal from './components/InviteModal';
 import CreateAlbumModal from './components/CreateAlbumModal';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
-import { getAllPhotosFromDB, savePhotoToDB, deletePhotoFromDB } from './utils/photoStorage';
+import { getAllPhotosFromDB, savePhotoToDB, savePhotosToDB, deletePhotoFromDB } from './utils/photoStorage';
 import {
-  subscribeToPhotos, savePhotoToCloud, deletePhotoFromCloud,
+  subscribeToPhotos, savePhotoToCloud, savePhotosToCloud, deletePhotoFromCloud,
   subscribeToAlbums, saveAlbumToCloud, deleteAlbumFromCloud,
   subscribeToMembers, saveMemberToCloud
 } from './utils/cloudSync';
@@ -187,8 +187,10 @@ export default function App() {
   // Delete Photo
   const handleDeletePhoto = async (id) => {
     try {
+      // Bug #1 Fix: Pass full photo object so deletePhotoFromCloud can read r2Key for R2 deletion
+      const photoToDelete = photos.find(p => p.id === id) || id;
       await deletePhotoFromDB(id);
-      await deletePhotoFromCloud(id);
+      await deletePhotoFromCloud(photoToDelete);
       setPhotos(prev => prev.filter(p => p.id !== id));
       if (selectedPhoto?.id === id) {
         setSelectedPhoto(null);
@@ -436,16 +438,20 @@ export default function App() {
     setSelectedPhoto(prev => prev?.id === id ? { ...prev, comments: [...(prev.comments || []), comment] } : prev);
   };
 
-  const handleUpload = async (newPhoto) => {
+  // Bug #2 Fix: UploadModal passes an array of photos; handle both array and single photo
+  const handleUpload = async (newPhotosInput) => {
+    const photosArr = Array.isArray(newPhotosInput) ? newPhotosInput : [newPhotosInput];
+    if (photosArr.length === 0) return;
     try {
-      await savePhotoToDB(newPhoto);
-      await savePhotoToCloud(newPhoto);
-      // Firestore's onSnapshot listener automatically and instantly handles adding this photo to the UI.
+      await savePhotosToDB(photosArr);
+      await savePhotosToCloud(photosArr);
+      // Firestore's onSnapshot listener automatically and instantly handles adding photos to the UI.
     } catch (err) {
-      console.error('Failed to save uploaded photo to cloud, using local fallback:', err);
+      console.error('Failed to batch save uploaded photos to cloud, using local fallback:', err);
       setPhotos(prev => {
-        if (prev.some(p => p.id === newPhoto.id)) return prev;
-        return [newPhoto, ...prev];
+        const existingIds = new Set(prev.map(p => p.id));
+        const newOnes = photosArr.filter(p => !existingIds.has(p.id));
+        return [...newOnes, ...prev];
       });
     }
   };
@@ -492,7 +498,7 @@ export default function App() {
                   家族雲端相簿
                 </h1>
                 <span className="badge badge-purple" style={{ fontSize: '0.65rem', padding: '2px 8px' }}>
-                  <Cloud size={10} color="var(--accent-cyan)" /> 雲端即時同步 · {storageConfig.totalGB}GB
+                  <Cloud size={10} color="var(--accent-cyan)" /> Cloudflare R2 · 10GB 免費額度
                 </span>
               </div>
             </div>
@@ -618,7 +624,7 @@ export default function App() {
                 const cover = albumPhotos[0]?.url || album.coverImage;
 
                 return (
-                  <div key={album.id} className="album-card-wrapper animate-fade-in">
+                  <div key={album.id} className="album-card-wrapper animate-fade-in" style={{ position: 'relative' }}>
                     {album.id !== 'alb-all' && (
                       <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 10, display: 'flex', gap: '6px' }}>
                         <button 
@@ -898,7 +904,7 @@ export default function App() {
         />
       )}
       {activeModal === 'storage' && (
-        <StorageConfigModal storageConfig={storageConfig} onClose={() => setActiveModal(null)} onSaveConfig={setStorageConfig} />
+        <StorageConfigModal storageConfig={storageConfig} photos={photos} onClose={() => setActiveModal(null)} onSaveConfig={setStorageConfig} />
       )}
       {activeModal === 'nickname' && (
         <NicknameModal 
@@ -980,7 +986,7 @@ export default function App() {
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
                     正在下載準備照片中，請稍候...
                   </p>
-                  <div style={{ display: 'flex', alignItems: 'center', justifycontent: 'center', gap: '8px', marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '14px' }}>
                     <RefreshCw size={20} style={{ animation: 'spin 1.5s linear infinite' }} />
                     <span style={{ fontWeight: '700', fontSize: '1rem' }}>{batchProgress.current} / {batchProgress.total}</span>
                   </div>

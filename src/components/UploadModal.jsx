@@ -95,9 +95,13 @@ export default function UploadModal({ albums = [], members, currentMember, exist
     }
   };
 
+  // Bug #9 Fix: Revoke object URLs only on component unmount, not on every previewUrls change
+  // This prevents preview images from briefly going blank when previewUrls updates
+  const previewUrlsRef = React.useRef(previewUrls);
+  React.useEffect(() => { previewUrlsRef.current = previewUrls; }, [previewUrls]);
   React.useEffect(() => {
-    return () => { previewUrls.forEach(url => URL.revokeObjectURL(url)); };
-  }, [previewUrls]);
+    return () => { previewUrlsRef.current.forEach(url => URL.revokeObjectURL(url)); };
+  }, []);
 
   const toggleMember = (mId) => {
     setSelectedMembers(prev => 

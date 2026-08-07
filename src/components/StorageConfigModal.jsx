@@ -23,7 +23,7 @@ const PROVIDERS = [
 
 export default function StorageConfigModal({ storageConfig, photos = [], onClose, onSaveConfig }) {
   const [selectedProvider, setSelectedProvider] = useState('r2');
-  const [email, _setEmail] = useState(storageConfig.connectedEmail || 'family.hub.cloud@gmail.com');
+  const email = storageConfig.connectedEmail || 'family.hub.cloud@gmail.com';
   const [autoBackup, setAutoBackup] = useState(storageConfig.autoBackupMobile ?? true);
   const [rawStorage, setRawStorage] = useState(storageConfig.rawStorageEnabled ?? true);
 
