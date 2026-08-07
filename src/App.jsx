@@ -1024,51 +1024,71 @@ export default function App() {
                     </div>
                   )}
 
-                  <button 
-                    className="btn btn-primary touch-active" 
-                    onClick={async () => {
-                      const curIndex = batchProgress.current;
-                      const photoInfo = batchProgress.photos[curIndex];
-                      if (!photoInfo) return;
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                    <button 
+                      className="btn btn-primary touch-active" 
+                      onClick={async () => {
+                        const curIndex = batchProgress.current;
+                        const photoInfo = batchProgress.photos[curIndex];
+                        if (!photoInfo) return;
 
-                      try {
-                        const filename = `${photoInfo.title || 'photo'}.jpg`;
-                        let file;
-                        if (photoInfo.blob) {
-                          file = new File([photoInfo.blob], filename, { type: photoInfo.blob.type || 'image/jpeg' });
-                        } else {
-                          const res = await fetch(photoInfo.url);
-                          const b = await res.blob();
-                          file = new File([b], filename, { type: b.type || 'image/jpeg' });
+                        try {
+                          const filename = `${photoInfo.title || 'photo'}.jpg`;
+                          let file;
+                          if (photoInfo.blob) {
+                            file = new File([photoInfo.blob], filename, { type: photoInfo.blob.type || 'image/jpeg' });
+                          } else {
+                            const res = await fetch(photoInfo.url);
+                            const b = await res.blob();
+                            file = new File([b], filename, { type: b.type || 'image/jpeg' });
+                          }
+
+                          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                            await navigator.share({
+                              files: [file],
+                              title: photoInfo.title,
+                            });
+                            // Successfully shared/saved, auto advance
+                            const nextIndex = curIndex + 1;
+                            if (nextIndex >= batchProgress.total) {
+                              setBatchProgress(null);
+                              setSelectedPhotoIds([]);
+                              setIsSelectMode(false);
+                            } else {
+                              setBatchProgress(prev => ({ ...prev, current: nextIndex }));
+                            }
+                          } else {
+                            alert("本瀏覽器不支援直接分享，請對著上方圖片「長按」並選擇「儲存影像」，完成後點擊「下一張」。");
+                          }
+                        } catch (shareErr) {
+                          console.error(shareErr);
+                          if (shareErr.name === 'AbortError') {
+                            // User cancelled, do not advance
+                            return;
+                          }
+                          alert("分享失敗，請對著上方圖片「長按」並選擇「儲存影像」，完成後點擊「下一張」。");
                         }
+                      }}
+                      style={{ width: '100%', padding: '12px', borderRadius: '30px', fontWeight: '700', background: 'var(--accent-gradient)', border: 'none', color: '#fff', fontSize: '0.95rem' }}>
+                      📤 點此儲存第 {batchProgress.current + 1} / {batchProgress.total} 張照片
+                    </button>
 
-                        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                          await navigator.share({
-                            files: [file],
-                            title: photoInfo.title,
-                          });
+                    <button 
+                      className="btn btn-secondary touch-active" 
+                      onClick={() => {
+                        const nextIndex = batchProgress.current + 1;
+                        if (nextIndex >= batchProgress.total) {
+                          setBatchProgress(null);
+                          setSelectedPhotoIds([]);
+                          setIsSelectMode(false);
                         } else {
-                          alert("本瀏覽器不支援直接分享，請對著圖片長按儲存。");
+                          setBatchProgress(prev => ({ ...prev, current: nextIndex }));
                         }
-                      } catch (shareErr) {
-                        console.error(shareErr);
-                      }
-
-                      const nextIndex = curIndex + 1;
-                      if (nextIndex >= batchProgress.total) {
-                        setBatchProgress(null);
-                        setSelectedPhotoIds([]);
-                        setIsSelectMode(false);
-                      } else {
-                        setBatchProgress(prev => ({
-                          ...prev,
-                          current: nextIndex
-                        }));
-                      }
-                    }}
-                    style={{ width: '100%', padding: '12px', borderRadius: '30px', fontWeight: '700', background: 'var(--accent-gradient)', border: 'none', color: '#fff', fontSize: '0.95rem' }}>
-                    📤 點此儲存第 {batchProgress.current + 1} / {batchProgress.total} 張照片
-                  </button>
+                      }}
+                      style={{ width: '100%', padding: '12px', borderRadius: '30px', fontWeight: '700', border: '1px solid rgba(255,255,255,0.2)', fontSize: '0.95rem', background: 'transparent', color: '#fff' }}>
+                      下一張 ➡️
+                    </button>
+                  </div>
                 </div>
               )}
 
