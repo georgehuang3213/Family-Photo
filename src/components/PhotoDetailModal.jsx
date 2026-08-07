@@ -148,7 +148,7 @@ export default function PhotoDetailModal({
   };
 
   const handleDelete = () => {
-    onDeletePhoto(photo);
+    onDeletePhoto(photo.id);
     onClose();
   };
 
