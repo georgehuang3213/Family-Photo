@@ -27,6 +27,7 @@ export default function CreateAlbumModal({ albumToEdit, onClose, onCreateAlbum, 
   const [description, setDescription] = useState(albumToEdit?.description || '');
   const [location, setLocation] = useState(albumToEdit?.location || '');
   const [selectedEmoji, setSelectedEmoji] = useState(getInitialEmoji);
+  const [date, setDate] = useState(albumToEdit?.date || new Date().toISOString().split('T')[0]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -41,6 +42,7 @@ export default function CreateAlbumModal({ albumToEdit, onClose, onCreateAlbum, 
         category,
         description: description.trim(),
         location: location.trim() || '未定地點',
+        date
       };
       if (onUpdateAlbum) onUpdateAlbum(updatedAlbum);
     } else {
@@ -50,7 +52,7 @@ export default function CreateAlbumModal({ albumToEdit, onClose, onCreateAlbum, 
         category,
         description: description.trim(),
         location: location.trim() || '未定地點',
-        date: new Date().toISOString().split('T')[0],
+        date,
         coverImage: null,
         photoCount: 0
       };
@@ -123,22 +125,38 @@ export default function CreateAlbumModal({ albumToEdit, onClose, onCreateAlbum, 
             />
           </div>
 
-          {/* Category */}
-          <div>
-            <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', display: 'block', marginBottom: '5px' }}>
-              分類類別：
-            </label>
-            <select 
-              value={category} 
-              onChange={e => setCategory(e.target.value)}
-              className="search-input"
-              style={{ paddingLeft: '14px', appearance: 'auto' }}>
-              {CATEGORIES.map(cat => (
-                <option key={cat} value={cat} style={{ background: '#111827', color: '#fff' }}>
-                  {cat}
-                </option>
-              ))}
-            </select>
+          {/* Category & Date */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', display: 'block', marginBottom: '5px' }}>
+                分類類別：
+              </label>
+              <select 
+                value={category} 
+                onChange={e => setCategory(e.target.value)}
+                className="search-input"
+                style={{ paddingLeft: '14px', appearance: 'auto' }}>
+                {CATEGORIES.map(cat => (
+                  <option key={cat} value={cat} style={{ background: '#111827', color: '#fff' }}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', display: 'block', marginBottom: '5px' }}>
+                相簿日期：
+              </label>
+              <input 
+                type="date"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                className="search-input"
+                style={{ paddingLeft: '14px' }}
+                required
+              />
+            </div>
           </div>
 
           {/* Location & Description */}
