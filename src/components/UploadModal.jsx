@@ -366,7 +366,7 @@ export default function UploadModal({ albums = [], members, currentMember, exist
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
               <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>照片標題</label>
-              <input type="text" placeholder="如：全家福大合照" value={title} onChange={e => setTitle(e.target.value)} className="search-input" style={{ paddingLeft: '14px' }} required />
+              <input type="text" placeholder="如：聚餐大合照" value={title} onChange={e => setTitle(e.target.value)} className="search-input" style={{ paddingLeft: '14px' }} required />
             </div>
 
             <div>
@@ -377,7 +377,7 @@ export default function UploadModal({ albums = [], members, currentMember, exist
                 className="search-input"
                 style={{ paddingLeft: '14px', appearance: 'auto' }}>
                 <option value="" style={{ background: '#111827', color: '#fff' }}>未分類相簿</option>
-                {albums.map(a => (
+                {albums.filter(a => a.id !== 'alb-all' && (!a.title || !a.title.includes('全家福相片總集'))).map(a => (
                   <option key={a.id} value={a.id} style={{ background: '#111827', color: '#fff' }}>
                     {a.title}
                   </option>

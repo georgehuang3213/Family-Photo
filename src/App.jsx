@@ -81,19 +81,20 @@ export default function App() {
     // Albums real-time cloud sync
     const unsubAlbums = subscribeToAlbums((cloudAlbums) => {
       if (Array.isArray(cloudAlbums)) {
-        if (cloudAlbums.length === 0) {
-          // Auto seed default albums to Firestore if empty
+        // Automatically delete legacy 'alb-all' or '全家福相片總集' from cloud
+        cloudAlbums.forEach(a => {
+          if (a.id === 'alb-all' || (a.title && a.title.includes('全家福相片總集'))) {
+            deleteAlbumFromCloud(a.id);
+          }
+        });
+
+        const validAlbums = cloudAlbums.filter(a => a.id !== 'alb-all' && (!a.title || !a.title.includes('全家福相片總集')));
+        
+        if (validAlbums.length === 0) {
           INITIAL_ALBUMS.forEach(a => saveAlbumToCloud(a));
           setAlbums(INITIAL_ALBUMS);
         } else {
-          // Ensure default 'alb-all' exists
-          const hasDefault = cloudAlbums.some(a => a.id === 'alb-all');
-          if (!hasDefault) {
-            saveAlbumToCloud(INITIAL_ALBUMS[0]);
-            setAlbums([INITIAL_ALBUMS[0], ...cloudAlbums]);
-          } else {
-            setAlbums(cloudAlbums);
-          }
+          setAlbums(validAlbums);
         }
       }
     }, (err) => {
@@ -229,13 +230,9 @@ export default function App() {
     }
   };
 
-  // Delete Album (Move its photos to 'alb-all' first)
+  // Delete Album (Move its photos to unassigned first)
   const handleDeleteAlbum = async (albumId, albumTitle) => {
-    if (albumId === 'alb-all') {
-      alert('「📸 全家福相片總集」為系統預設相簿，無法刪除！');
-      return;
-    }
-    const confirmDelete = window.confirm(`⚠️ 確定要刪除相簿「${albumTitle}」嗎？\n\n此操作不會刪除相簿內部的照片，照片將會自動歸類至「📸 全家福相片總集」。`);
+    const confirmDelete = window.confirm(`⚠️ 確定要刪除相簿「${albumTitle}」嗎？\n\n此操作不會刪除相簿內部的照片，照片將會自動歸類至「未分類相簿」。`);
     if (!confirmDelete) return;
 
     try {
